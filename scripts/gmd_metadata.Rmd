@@ -1,0 +1,152 @@
+GMD metadata for all Trost experiments
+========================================================
+
+Date: 14.07.2014  
+Author: Heike Sprenger  
+
+### set working directory
+```{r set working directory}
+# setwd("D:/work/repos/trost_metabolomics")
+# setwd("~/work/repos/trost_metabolomics")
+```
+
+[solution for issue with working directory and knitr](https://github.com/yihui/knitr/issues/277)
+
+### Load workspace, packages and scripts
+```{r load workspace, message=FALSE}
+# load packages
+library(knitr)
+library(ggplot2)
+library(reshape)
+library(reshape2)
+library(pander)
+library(plyr)
+library(RODBC)
+# library(RMySQL)
+# library(yaml)
+
+# set options for pander
+panderOptions('table.split.table', 200)
+
+# set options for knitr
+opts_chunk$set(fig.width=5, fig.height=5, cache=FALSE, highlight = TRUE, fig.show="asis")
+opts_knit$set(root.dir = '../')
+
+# options(width=600)
+
+# load workspace
+# load("gmd_data.RData")
+```
+
+
+### source R functions
+```{r source R functions, include=FALSE}
+source("../libpurzel/func_get_experiment_id.R")
+source("../libpurzel/func_get_gmd_metatdata.R")
+```
+
+
+### Set up database connection
+```{r set up database connection}
+dbhandle <- odbcDriverConnect('driver={SQL Server}; 
+                              server=r710sqljahu; 
+                              database=GMD; 
+                              trusted_connection=true')
+
+# login <- yaml.load_file("../libpurzel/login.yaml")
+
+# phenotyper <- dbConnect(MySQL(), user=login$user, password=login$passwd, dbname=login$db, host=login$host)  
+
+# gmd_connection <- dbConnect(MySQL(), 
+#                             user = "MPIMP-GOLM\HSprenger", 
+#                             password = Potato, 
+#                             dbname = r710sqljahu, 
+#                             host = gmd.mpimp-golm.mpg.de)  
+```
+
+
+### Read table of trost_TagList and phenotyper_result_joined
+```{r read table: trost_TagList and phenotyper_result_joined}
+trost_TagList <- read.table("data/trost_TagList.txt", sep="\t", header=TRUE)
+
+phenotyper_result_joined <- read.table("data/phenotyper_result_joined_with_gmd_ids.txt", sep="\t", header=TRUE)
+```
+
+
+### try out to get correct paste command
+```{r try out to get correct paste command}
+#var1 <- "trost"
+#test <- sqlQuery(dbhandle, paste("select * from tf.TagList where comment=","\'", var1, "\'", sep=""))
+```
+
+
+### function with SQL query for GMD metadata concerning Sorbitol values (Internal Standard = IS), Average Annotated, dry weight and fresh weight.
+
+### function to get experiment_id
+```{r define experiment id}
+# try out function
+experiment_id <- func_get_experiment_id("MPI_Feld_2011")
+```
+
+### execute GMD metadata function for 6 selected experiments
+```{r execute GMD metadata function}
+sort(trost_TagList$experiment)
+
+# combination of both functions
+gmd_meta_mpitest1_2 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Test1_2") , phenotyper_result_joined)
+gmd_meta_mpitest2 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Test2") , phenotyper_result_joined)
+gmd_meta_jkitest1 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Test1") , phenotyper_result_joined)
+gmd_meta_jkitest2 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Test2") , phenotyper_result_joined)
+
+gmd_meta_mpi_field_2011 <- func_get_gmd_metatdata_all( func_get_experiment_id("MPI_Feld_2011") , phenotyper_result_joined)
+gmd_meta_mpi_field_2012 <- func_get_gmd_metatdata_all( func_get_experiment_id("MPI_Feld_2012") , phenotyper_result_joined)
+gmd_meta_jki_field_2012 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Feld_2012") , phenotyper_result_joined)
+#gmd_meta_jki_field_2013 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Feld_2013") , phenotyper_result_joined)
+gmd_meta_dethlingen_2011 <- func_get_gmd_metatdata( func_get_experiment_id("Dethlingen_2011") , phenotyper_result_joined)
+
+gmd_meta_jki_shelter_2011 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Shelter_2011") , phenotyper_result_joined)
+gmd_meta_jki_shelter_2012 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Shelter_2012") , phenotyper_result_joined)
+gmd_meta_mpi_pruef1 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Pruef1") , phenotyper_result_joined)
+gmd_meta_mpi_pruef2 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Pruef2") , phenotyper_result_joined)
+gmd_meta_mpi_pruef3 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Pruef3") , phenotyper_result_joined)
+
+gmd_meta_mpi_pruef1 <- gmd_meta_mpi_pruef1[-178,]
+gmd_meta_mpi_pruef2 <- gmd_meta_mpi_pruef2[-48,]
+
+#gmd_meta_breeder_trials <- func_get_gmd_metatdata( func_get_experiment_id("breeder_trials") , phenotyper_result_joined)
+
+# VALDIS TROST
+gmd_meta_jki_shelter_2014 <- func_get_gmd_metatdata_all( func_get_experiment_id("JKI_Shelter_2014"), phenotyper_result_joined )
+gmd_meta_mpi_fgh_2014 <- func_get_gmd_metatdata_all( func_get_experiment_id("MPI_FGH_2014"), phenotyper_result_joined)
+```
+
+
+### save tables with GMD metadata
+```{r save tables with GMD metadata}
+write.table(gmd_meta_mpitest1_2, "data/gmd_meta_mpitest1_2.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_mpitest2, "data/gmd_meta_mpitest2.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_jkitest1, "data/gmd_meta_jkitest1.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_jkitest2, "data/gmd_meta_jkitest2.txt", sep="\t", quote=FALSE)
+
+write.table(gmd_meta_mpi_field_2011, "data/gmd_meta_mpi_field_2011.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_mpi_field_2012, "data/gmd_meta_mpi_field_2012.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_jki_field_2012, "data/gmd_meta_jki_field_2012.txt", sep="\t", quote=FALSE)
+#write.table(gmd_meta_jki_field_2013, "data/gmd_meta_jki_field_2013.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_dethlingen_2011, "data/gmd_meta_dethlingen_2011.txt", sep="\t", quote=FALSE)
+
+write.table(gmd_meta_jki_shelter_2011, "data/gmd_meta_jki_shelter_2011.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_jki_shelter_2012, "data/gmd_meta_jki_shelter_2012.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_mpi_pruef1, "data/gmd_meta_mpi_pruef1.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_mpi_pruef2, "data/gmd_meta_mpi_pruef2.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_mpi_pruef3, "data/gmd_meta_mpi_pruef3.txt", sep="\t", quote=FALSE)
+
+write.table(gmd_meta_jki_shelter_2014, "data/gmd_meta_jki_shelter_2014.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_mpi_fgh_2014, "data/gmd_meta_mpi_fgh_2014.txt", sep="\t", quote=FALSE)
+```
+
+
+### sessionInfo
+```{r sessionInfo}
+save.image("gmd_data.RData")
+sessionInfo()
+```
