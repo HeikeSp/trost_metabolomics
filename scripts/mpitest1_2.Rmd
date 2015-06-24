@@ -7,22 +7,13 @@ GMD data for MPI Test trial 1.2
 # setwd("~/work/repos/trost_metabolomics")
 ```
 
+
 [solution for issue with working directory and knitr](https://github.com/yihui/knitr/issues/277)
 
 ### Load workspace, packages and scripts
 ```{r load workspace, message=FALSE}
-# load packages
 library(knitr)
-library(ggplot2)
-library(reshape)
-library(reshape2)
 library(pander)
-library(reshape)
-library(plyr)
-library(pcaMethods)
-library(psych)
-library(corrgram)
-library(corrplot)
 
 # set options for pander
 panderOptions('table.split.table', 200)
@@ -36,30 +27,30 @@ opts_knit$set(root.dir = '../')
 ```
 
 
-### source R functions
-```{r source R functions, include=FALSE}
-source("../libpurzel/colors.R")
-source("../libpurzel/names.R")
-
+### Load packages and functions for metabolite data analysis
+```{r load packages and functions for metabolite data analysis, message=FALSE, fig.show='hide'}
+source("../libpurzel/func_load_packages_metabolite_data_analysis.R")
+source("../libpurzel/func_load_functions_metabolite_data_analysis.R")
 ```
 
 
 ### Load phenotyper results and analytes table
 ```{r load phenotyper results and analytes table}
+phenotyper_result_joined <- read.table("data/phenotyper_result_joined_with_gmd_ids.txt", 
+                                       sep="\t", header=TRUE)
 
-phenotyper_result_joined <- read.table("../../GMD_Phenotyper/data/phenotyper_result_joined_with_gmd_ids.txt", sep="\t", header=TRUE)
-
-analytes_sel_exp_sort <- read.table("../../GMD_Phenotyper/data/analytes_7sel_exp_sort_new.txt", sep="\t", header=TRUE, allowEscapes = T)
+analytes_sel_exp_sort <- read.table("data/analytes_7sel_exp_sort_new.txt", 
+                                    sep="\t", header=TRUE, allowEscapes = T)
 ```
 
 
 ### Read tables with gmd values and metadata
 ```{r read tables with gmd values and metadata}
-gmd_values <- read.table("../../GMD_Phenotyper/data/gmd_values_mpitest1_2.txt", sep="\t", header=TRUE, check.names=FALSE)
+gmd_values <- read.table("data/gmd_values_mpitest1_2.txt", sep="\t", header=TRUE, check.names=FALSE)
 dim(gmd_values)
 # 114 265 (ALL 114 samples!)
 
-gmd_meta <- read.table("../../GMD_Phenotyper/data/gmd_meta_mpitest1_2.txt", sep="\t", header=TRUE)
+gmd_meta <- read.table("data/gmd_meta_mpitest1_2.txt", sep="\t", header=TRUE)
 dim(gmd_meta)
 # 96 29 (ONLY biological samples!)
 colnames(gmd_meta)
@@ -78,14 +69,12 @@ dim(gmd_values_part)
 ### Define subset of overlapping analytes
 #### SELECT: 110 overlapping analytes regarding 6 TROST experiments, WITHOUT internal standards and contaminations
 ```{r subset of analytes}
-source("../../functions/func_get_overlapping_analytes.R")
-
 gmd_values_select <- func_get_overlapping_analytes(analytes_sel_exp_sort, gmd_values_part)
 # [1] "number of SELECTED overlapping analytes: 107"
 # [1] "dim of overlapping analytes value matrix:"
 # [1]  96 107
 
-write.table(gmd_values_select, "../output/mpitest1_2/gmd_values_select.txt", sep="\t")
+write.table(gmd_values_select, "output/mpitest1_2/gmd_values_select.txt", sep="\t")
 ```
 
 
@@ -95,7 +84,6 @@ write.table(gmd_values_select, "../output/mpitest1_2/gmd_values_select.txt", sep
 gmd_values_select_log10 <- log10(gmd_values_select)
 
 # replace NAs with lowest value of dataset
-source("../../functions/func_replace_na_with_min_value.R")
 gmd_values_select_woNA <- func_replace_na_with_min_value(gmd_values_select)
 
 # log10 transformation after NA replacement -> without NAs 
@@ -104,18 +92,16 @@ gmd_values_select_log10_woNA <- log10(gmd_values_select_woNA)
 sum(is.na(gmd_values_select_log10))
 sum(is.na(gmd_values_select_log10_woNA))
 
-write.table(gmd_values_select_log10, "../output/mpitest1_2/gmd_values_select_log10.txt", sep="\t")
-write.table(gmd_values_select_log10_woNA, "../output/mpitest1_2/gmd_values_select_log10_woNA.txt", sep="\t")
+write.table(gmd_values_select_log10, "output/mpitest1_2/gmd_values_select_log10.txt", sep="\t")
+write.table(gmd_values_select_log10_woNA, "output/mpitest1_2/gmd_values_select_log10_woNA.txt", sep="\t")
 ```
 
 
 ### Calculate percentage of NAs and plot histograms
 ```{r percentage of NAs}
-source("../../functions/func_na_statistics.R")
-
 func_print_na_statistics(gmd_values_select, analytes_sel_exp_sort)
 
-pdf("../figures/mpitest1_2/NAs_hist.pdf")
+pdf("figures/mpitest1_2/NAs_hist.pdf")
 func_plot_na_statistics(gmd_values_select)
 dev.off()
 ```
@@ -123,8 +109,6 @@ dev.off()
 
 ### Extract BatchID and SequenceID from GMD_id
 ```{r BatchID and SequenceID}
-source("../../functions/func_get_batch_seq_ids.R")
-
 BatchID <- func_get_batch_ids(gmd_meta)
 SequenceID <- func_get_sequence_ids(gmd_meta)
 ```
@@ -133,50 +117,36 @@ SequenceID <- func_get_sequence_ids(gmd_meta)
 ### Relevel factors: treatment, cultivar, sample_time and create factors table
 ```{r relevel factors and factors table}
 # relevel factors (treatment, cultivar, sample_time)
-source("../../functions/func_relevel_factors.R")
 gmd_meta <- func_relevel_factors(gmd_meta)
 
 # define tolerance factor
-source("../../functions/func_create_tolerance_factor.R")
 tolerance <- func_create_tolerance_factor(gmd_meta)
 
 # create factors table for treatment, cultivar, sample_time, Dw, Fw, Is, AvgAnnotated, AvgAnnotatedLog10, BatchID, SequenceID
-source("../../functions/func_create_factors_table.R")
 factors <- func_create_factors_table(gmd_meta, SequenceID, BatchID, tolerance)
 levels(factors$cultivar)
 
-write.table(factors, "../output/mpitest1_2/factors.txt", sep="\t")
+write.table(factors, "output/mpitest1_2/factors.txt", sep="\t")
 ```
 
 
-### Remove Factors by ANOVA models using R script by Jan Lisec
-```{r source remove factors function}
-source("../../functions/RemoveFactors_function.R")
-source("../../functions/func_normalize.R")
-```
-
-
-### Normalize Values
+### Normalize Values: Remove Factors by ANOVA models using R script by Jan Lisec
 #### IIIc: SequenceID + BatchID + LOG10(AvgAnnotated)
 ```{r normalize values IIIc}
 values_norm_log10 <- func_normalize(gmd_values_select_log10, factors)
-write.table(values_norm_log10, "../output/mpitest1_2/values_norm_log10.txt", sep="\t")
+write.table(values_norm_log10, "output/mpitest1_2/values_norm_log10.txt", sep="\t")
 
 #######################################################
 
 # matrix without NAs
 values_norm_log10_woNA <- func_normalize(gmd_values_select_log10_woNA, factors)
-write.table(values_norm_log10_woNA, "../output/mpitest1_2/values_norm_log10_woNA.txt", sep="\t")
+write.table(values_norm_log10_woNA, "output/mpitest1_2/values_norm_log10_woNA.txt", sep="\t")
 ```
 
 
 ### Outlier Detection
 ```{r outlier detection}
-source("../../functions/find_one_outlier.R")
-source("../../functions/func_hist_outlier.R")
-source("../../functions/func_replace_outlier.R")
-
-pdf("../figures/mpitest1_2/outlier_hist.pdf")
+pdf("figures/mpitest1_2/outlier_hist.pdf")
 func_hist_outlier(values_norm_log10, threshold=1e-5)
 dev.off()
 
@@ -194,14 +164,13 @@ sum(is.na(values_norm_log10)) # 189
 sum(is.na(values_norm_log10_woOutlier)) # 198
 sum(is.na(gmd_values_select_log10_woOutlier)) # 198
 
-write.table(values_norm_log10_woOutlier, "../output/mpitest1_2/values_norm_log10_woOutlier.txt", sep="\t")
-write.table(gmd_values_select_log10_woOutlier, "../output/mpitest1_2/gmd_values_select_log10_woOutlier.txt", sep="\t")
+write.table(values_norm_log10_woOutlier, "output/mpitest1_2/values_norm_log10_woOutlier.txt", sep="\t")
+write.table(gmd_values_select_log10_woOutlier, "output/mpitest1_2/gmd_values_select_log10_woOutlier.txt", sep="\t")
 ```
 
 
 ### Coefficient of Variation --> calculate, print, plot
 ```{r calculate CV}
-source("../../functions/func_calculate_cv.R")
 # calculate cv values
 # INPUT: already normalized values (containing NAs)!
 cv_values <- func_calculate_cv(values_norm_log10_woOutlier, factors, 
@@ -213,7 +182,7 @@ cv_values <- func_calculate_cv(values_norm_log10_woOutlier, factors,
 func_print_cv(cv_values, 0.25)
 
 # plot histogram of cv values per analyte
-pdf("../figures/mpitest1_2/cv_values_hist.pdf")
+pdf("figures/mpitest1_2/cv_values_hist.pdf")
 func_plot_cv(cv_values)
 dev.off()
 ```
@@ -221,10 +190,8 @@ dev.off()
 
 #### check normal distribution --> shapiro test and histogram
 ```{r check normal distribution}
-source("../../functions/func_check_norm_dist.R")
-
 ### plot histograms of normalized values per analyte
-pdf("../figures/mpitest1_2/values_norm_log10_hist.pdf")
+pdf("figures/mpitest1_2/values_norm_log10_hist.pdf")
 func_plot_dist(values_norm_log10_woOutlier)
 dev.off()
 
@@ -235,8 +202,6 @@ res_shapiro <- func_shapiro_test(values_norm_log10_woOutlier, 1e-6)
 
 #### aggregate normalized log10 values
 ```{r aggregate normalized log10 values}
-source("../../functions/func_aggregate_values.R")
-
 # for matrix with NAs
 values_norm_log10_mean <- func_agg_3fac(values_norm_log10_woOutlier, factors, "treatment", "sample_time", "cultivar", mean, analytes_sel_exp_sort)
 values_norm_log10_median <- func_agg_3fac(values_norm_log10_woOutlier, factors, "treatment", "sample_time", "cultivar", median, analytes_sel_exp_sort)
@@ -248,18 +213,16 @@ dim(values_norm_log10_median)
 values_norm_log10_woNA_mean <- func_agg_3fac(values_norm_log10_woNA, factors, "treatment", "sample_time", "cultivar", mean, analytes_sel_exp_sort)
 values_norm_log10_woNA_median <- func_agg_3fac(values_norm_log10_woNA, factors, "treatment", "sample_time", "cultivar", median, analytes_sel_exp_sort)
 
-write.table(values_norm_log10_mean, "../output/mpitest1_2/values_norm_log10_mean.txt", sep="\t")
-write.table(values_norm_log10_median, "../output/mpitest1_2/values_norm_log10_median.txt", sep="\t")
-write.table(values_norm_log10_woNA_mean, "../output/mpitest1_2/values_norm_log10_woNA_mean.txt", sep="\t")
-write.table(values_norm_log10_woNA_median, "../output/mpitest1_2/values_norm_log10_woNA_median.txt", sep="\t")
+write.table(values_norm_log10_mean, "output/mpitest1_2/values_norm_log10_mean.txt", sep="\t")
+write.table(values_norm_log10_median, "output/mpitest1_2/values_norm_log10_median.txt", sep="\t")
+write.table(values_norm_log10_woNA_mean, "output/mpitest1_2/values_norm_log10_woNA_mean.txt", sep="\t")
+write.table(values_norm_log10_woNA_median, "output/mpitest1_2/values_norm_log10_woNA_median.txt", sep="\t")
 ```
 
 
 
 ### Compare influence of different scaling methods for one dataset on PCA results
 ```{r compare scaling methods}
-source("../../functions/func_prep_pca.R")
-
 pca_norm_log10_pareto_rnipals <- func_prep_pca(values_norm_log10_woOutlier, scale_method = "pareto", center_option = FALSE, 
                                              pc_number = 5, pca_method = "rnipals")
 
@@ -288,9 +251,7 @@ pairs(pca_norm_log10_woNA_pareto_rnipals@scores[,1:5], col=factors$cultivar, pch
 
 #### compare scaling methods: PCA plots
 ```{r compare scaling methods: pca plots}
-#source("../../functions/func_pca_plots.R")
-
-pdf("../figures/jkitest1/PCA_scoresplots_scaling_effect.pdf")
+pdf("figures/mpitest1_2/PCA_scoresplots_scaling_effect.pdf")
 palette(cols_cultivar)
 pairs(pca_norm_log10_pareto_rnipals@scores[,1:5], col=factors$cultivar, pch=19, main="pareto scaling")
 pairs(pca_norm_log10_uv_rnipals@scores[,1:5], col=factors$cultivar, pch=19, main="unit variance scaling")
@@ -329,7 +290,7 @@ pca_norm_log10_none_svdimpute <- func_prep_pca(values_norm_log10_woOutlier, scal
 
 #### compare PCA methods: PCA plots
 ```{r compare pca methods: pca plots}
-pdf("../figures/mpitest1_2/PCA_scoresplots_pca_methods_effect.pdf")
+pdf("figures/mpitest1_2/PCA_scoresplots_pca_methods_effect.pdf")
 palette(cols_cultivar)
 pairs(pca_norm_log10_none_rnipals@scores[,1:5], col=factors$cultivar, pch=19, main="rnipals")
 pairs(pca_norm_log10_none_bpca@scores[,1:5], col=factors$cultivar, pch=19, main="bpca")
@@ -355,7 +316,7 @@ dev.off()
 ```{r scatterplots pareto scaling + rnipals PCA}
 # ANOVA Normalisierung mit log10-Werten 
 
-pdf("../figures/mpitest1_2/PCA_scoresplots_NA_effect.pdf", width=12, height=6)
+pdf("figures/mpitest1_2/PCA_scoresplots_NA_effect.pdf", width=12, height=6)
 palette(cols_cultivar)
 par(mfrow=c(1,2))
 plot(pca_norm_log10_pareto_rnipals@scores[,1], pca_norm_log10_pareto_rnipals@scores[,3], 
@@ -401,27 +362,23 @@ par(mfrow=c(1,1))
 
 ### ANOVA with 3 factors (without interaction): treatment, cultivar, sample_time
 ```{r ANOVA with 3 factors (without interaction)}
-source("../../functions/func_anova.R")
-
 res_anova_adj <- func_anova_3fac(values_norm_log10_woOutlier, factors, "treatment", "cultivar", "sample_time", 0.01, analytes_sel_exp_sort)
 
-write.table(res_anova_adj, "../output/mpitest1_2/res_anova_adj.txt", sep="\t")
+write.table(res_anova_adj, "output/mpitest1_2/res_anova_adj.txt", sep="\t")
 ```
 
 
 ### Boxplots of normalized values per analyte using 1 factor
 ```{r boxplots of normalized values per analyte using 1 factor}
-source("../../functions/func_boxplot.R")
-
-pdf("../figures/mpitest1_2/boxplot_treatment.pdf")
+pdf("figures/mpitest1_2/boxplot_treatment.pdf")
 func_boxplot_1fac(values_norm_log10_woOutlier, factors, "treatment", res_anova_adj, cols_treatment, analytes_sel_exp_sort)
 dev.off()
 
-pdf("../figures/mpitest1_2/boxplot_sample_time.pdf")
+pdf("figures/mpitest1_2/boxplot_sample_time.pdf")
 func_boxplot_1fac(values_norm_log10_woOutlier, factors, "sample_time", res_anova_adj, cols_sample_time, analytes_sel_exp_sort)
 dev.off()
 
-pdf("../figures/mpitest1_2/boxplot_cultivar.pdf")
+pdf("figures/mpitest1_2/boxplot_cultivar.pdf")
 func_boxplot_1fac(values_norm_log10_woOutlier, factors, "cultivar", res_anova_adj, cols_cultivar, analytes_sel_exp_sort)
 dev.off()
 ```
@@ -429,21 +386,15 @@ dev.off()
 
 ### ANOVA for 2 factors: treatment and sample time + interaction
 ```{r ANOVA with 2 factors (with interaction)}
-source("../../functions/func_anova.R")
-
 res_anova2_adj <- func_anova_2fac_ia(values_norm_log10_woOutlier, factors, "treatment", "sample_time", 0.01, analytes_sel_exp_sort)
 
-write.table(res_anova2_adj, "../output/mpitest1_2/res_anova2_adj.txt", sep="\t")
+write.table(res_anova2_adj, "output/mpitest1_2/res_anova2_adj.txt", sep="\t")
 ```
 
 
 ### Boxplots of normalized values per analyte using 2 factors
 ```{r boxplots of normalized values per analyte using 2 factors}
-source("../../functions/func_boxplot.R")
-
-names_treatment_sample_time <- c("control \n early/before", "drought stress \n early/before", "control \n early/after", "drought stress \n early/after", "control \n late/before", "drought stress \n late/before", "control \n late/after", "drought stress \n late/after")
-
-pdf("../figures/mpitest1_2/boxplot_treatment_sample_time.pdf")
+pdf("figures/mpitest1_2/boxplot_treatment_sample_time.pdf")
 par(mar=c(7, 4.1, 7, 2.1))
 func_boxplot_2fac(normalized_values = values_norm_log10_woOutlier, 
                   trial_factors = factors, 
@@ -451,7 +402,7 @@ func_boxplot_2fac(normalized_values = values_norm_log10_woOutlier,
                   factor2 = "sample_time", 
                   res_anova_adj = res_anova2_adj, 
                   cols = cols_treatment_sample_time,
-                  names_factors = names_treatment_sample_time,
+                  names_factors = names_treatment_sample_time_2,
                   analytes_sel_exp_sort)
 dev.off()
 ```
@@ -465,26 +416,24 @@ dim(values_norm_log10_late_before)
 factors_late_before <- subset(factors, factors$sample_time=="late/before")
 factors_late_before$sample_time <- droplevels(factors_late_before$sample_time)
 
-write.table(values_norm_log10_late_before, "../output/mpitest1_2/values_norm_log10_late_before.txt", sep="\t")
-write.table(factors_late_before, "../output/mpitest1_2/factors_late_before.txt", sep="\t")
+write.table(values_norm_log10_late_before, "output/mpitest1_2/values_norm_log10_late_before.txt", sep="\t")
+write.table(factors_late_before, "output/mpitest1_2/factors_late_before.txt", sep="\t")
 
 ### un-normalized values
 
 gmd_values_select_log10_late_before <- subset(gmd_values_select_log10, factors$sample_time=="late/before")
-write.table(gmd_values_select_log10_late_before, "../output/mpitest1_2/gmd_values_select_log10_late_before.txt", sep="\t")
+write.table(gmd_values_select_log10_late_before, "output/mpitest1_2/gmd_values_select_log10_late_before.txt", sep="\t")
 ```
 
 
 ### aggregate only late/before samples
 ```{r aggregate only late/before samples}
-source("../../functions/func_aggregate_values.R")
-
 values_norm_log10_late_before_mean <- func_agg_2fac(values_norm_log10_late_before, factors_late_before, "cultivar", "treatment", mean, analytes_sel_exp_sort)
 
 sample_names <- c("t03_a_c", "t03_m_c", "t03_d_c", "t03_s_c", "t03_a_d", "t03_m_d", "t03_d_d", "t03_s_d")
 values_norm_log10_late_before_mean <- cbind(sample_names, values_norm_log10_late_before_mean[,-c(1,2)])
 dim(values_norm_log10_late_before_mean)
-write.table(values_norm_log10_late_before_mean, "../output/mpitest1_2/values_norm_log10_late_before_mean.txt", sep="\t")
+write.table(values_norm_log10_late_before_mean, "output/mpitest1_2/values_norm_log10_late_before_mean.txt", sep="\t")
 ```
 
 
