@@ -52,7 +52,7 @@ file_gmd_values_select <- paste("output/", experiment_string, "/gmd_values_selec
 file_gmd_values_select_log10 <- paste("output/", experiment_string, "/gmd_values_select_log10.txt", sep = "")
 file_gmd_values_select_log10_woNA <- paste("output/", experiment_string, "/gmd_values_select_log10_woNA.txt", sep = "")
 
-file_values_norm_log10_woOutlier <- paste("output/", experiment_string, "/values_norm_log10_woOutlier", sep = "")
+file_values_norm_log10_woOutlier <- paste("output/", experiment_string, "/values_norm_log10_woOutlier.txt", sep = "")
 file_gmd_values_select_log10_woOutlier <- paste("output/", experiment_string, "/gmd_values_select_log10_woOutlier.txt", sep = "")
 ```
 
