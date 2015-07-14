@@ -127,10 +127,10 @@ experiment_id <- func_get_experiment_id("MPI_Test1_2")
 ## Values Per Experiment
 ### Execute GMD values function
 ```{r execute GMD values function}
-gmd_values_mpitest1_2 <- func_get_gmd_values( func_get_experiment_id("MPI_Test1_2") )
-gmd_values_mpitest2 <- func_get_gmd_values( func_get_experiment_id("MPI_Test2") )
-gmd_values_jkitest1 <- func_get_gmd_values( func_get_experiment_id("JKI_Test1") )
-gmd_values_jkitest2 <- func_get_gmd_values( func_get_experiment_id("JKI_Test2") )
+gmd_values_mpi_test_1_2 <- func_get_gmd_values( func_get_experiment_id("MPI_Test1_2") )
+gmd_values_mpi_test_2 <- func_get_gmd_values( func_get_experiment_id("MPI_Test2") )
+gmd_values_jki_test_1 <- func_get_gmd_values( func_get_experiment_id("JKI_Test1") )
+gmd_values_jki_test_2 <- func_get_gmd_values( func_get_experiment_id("JKI_Test2") )
 
 gmd_values_mpi_field_2011 <- func_get_gmd_values( func_get_experiment_id("MPI_Feld_2011") )
 gmd_values_mpi_field_2012 <- func_get_gmd_values( func_get_experiment_id("MPI_Feld_2012") )
@@ -140,9 +140,9 @@ gmd_values_dethlingen_2011 <- func_get_gmd_values( func_get_experiment_id("Dethl
 
 gmd_values_jki_shelter_2011 <- func_get_gmd_values( func_get_experiment_id("JKI_Shelter_2011") )
 gmd_values_jki_shelter_2012 <- func_get_gmd_values( func_get_experiment_id("JKI_Shelter_2012") )
-gmd_values_mpi_pruef1 <- func_get_gmd_values( func_get_experiment_id("MPI_Pruef1") )
-gmd_values_mpi_pruef2 <- func_get_gmd_values( func_get_experiment_id("MPI_Pruef2") )
-gmd_values_mpi_pruef3 <- func_get_gmd_values( func_get_experiment_id("MPI_Pruef3") )
+gmd_values_mpi_pruef_1 <- func_get_gmd_values( func_get_experiment_id("MPI_Pruef1") )
+gmd_values_mpi_pruef_2 <- func_get_gmd_values( func_get_experiment_id("MPI_Pruef2") )
+gmd_values_mpi_pruef_3 <- func_get_gmd_values( func_get_experiment_id("MPI_Pruef3") )
 
 gmd_values_breeder_trials <- func_get_gmd_values( func_get_experiment_id("breeder_trials") )
 
@@ -154,10 +154,10 @@ gmd_values_mpi_fgh_2014 <- func_get_gmd_values( func_get_experiment_id("MPI_FGH_
 
 ### save tables with GMD values
 ```{r save tables with GMD values}
-write.table(gmd_values_mpitest1_2, "data/gmd_values_mpitest1_2.txt", sep="\t", quote=FALSE)
-write.table(gmd_values_mpitest2, "data/gmd_values_mpitest2.txt", sep="\t", quote=FALSE)
-write.table(gmd_values_jkitest1, "data/gmd_values_jkitest1.txt", sep="\t", quote=FALSE)
-write.table(gmd_values_jkitest2, "data/gmd_values_jkitest2.txt", sep="\t", quote=FALSE)
+write.table(gmd_values_mpi_test_1_2, "data/gmd_values_mpi_test_1_2.txt", sep="\t", quote=FALSE)
+write.table(gmd_values_mpi_test_2, "data/gmd_values_mpi_test_2.txt", sep="\t", quote=FALSE)
+write.table(gmd_values_jki_test_1, "data/gmd_values_jki_test_1.txt", sep="\t", quote=FALSE)
+write.table(gmd_values_jki_test_2, "data/gmd_values_jki_test_2.txt", sep="\t", quote=FALSE)
 
 write.table(gmd_values_mpi_field_2011, "data/gmd_values_mpi_field_2011.txt", sep="\t", quote=FALSE)
 write.table(gmd_values_mpi_field_2012, "data/gmd_values_mpi_field_2012.txt", sep="\t", quote=FALSE)
@@ -167,9 +167,9 @@ write.table(gmd_values_dethlingen_2011, "data/gmd_values_dethlingen_2011.txt", s
 
 write.table(gmd_values_jki_shelter_2011, "data/gmd_values_jki_shelter_2011.txt", sep="\t", quote=FALSE)
 write.table(gmd_values_jki_shelter_2012, "data/gmd_values_jki_shelter_2012.txt", sep="\t", quote=FALSE)
-write.table(gmd_values_mpi_pruef1, "data/gmd_values_mpi_pruef1.txt", sep="\t", quote=FALSE)
-write.table(gmd_values_mpi_pruef2, "data/gmd_values_mpi_pruef2.txt", sep="\t", quote=FALSE)
-write.table(gmd_values_mpi_pruef3, "data/gmd_values_mpi_pruef3.txt", sep="\t", quote=FALSE)
+write.table(gmd_values_mpi_pruef_1, "data/gmd_values_mpi_pruef_1.txt", sep="\t", quote=FALSE)
+write.table(gmd_values_mpi_pruef_2, "data/gmd_values_mpi_pruef_2.txt", sep="\t", quote=FALSE)
+write.table(gmd_values_mpi_pruef_3, "data/gmd_values_mpi_pruef_3.txt", sep="\t", quote=FALSE)
 
 write.table(gmd_values_breeder_trials, "data/gmd_values_breeder_trials.txt", sep="\t", quote=FALSE)
 

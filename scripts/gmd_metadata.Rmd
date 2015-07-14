@@ -22,8 +22,8 @@ library(reshape2)
 library(pander)
 library(plyr)
 library(RODBC)
-# library(RMySQL)
-# library(yaml)
+library(RMySQL)
+library(yaml)
 
 # set options for pander
 panderOptions('table.split.table', 200)
@@ -48,6 +48,7 @@ source("../libpurzel/func_get_gmd_metatdata.R")
 
 ### Set up database connection
 ```{r set up database connection}
+# old version, using RODBC:
 dbhandle <- odbcDriverConnect('driver={SQL Server}; 
                               server=r710sqljahu; 
                               database=GMD; 
@@ -55,13 +56,20 @@ dbhandle <- odbcDriverConnect('driver={SQL Server};
 
 # login <- yaml.load_file("../libpurzel/login.yaml")
 
-# phenotyper <- dbConnect(MySQL(), user=login$user, password=login$passwd, dbname=login$db, host=login$host)  
+# phenotyper <- dbConnect(MySQL(), 
+#                         user=login$user, 
+#                         password=login$passwd, 
+#                         dbname=login$db, 
+#                         host=login$host)  
 
+
+# new version, using RMySQL:
 # gmd_connection <- dbConnect(MySQL(), 
-#                             user = "MPIMP-GOLM\HSprenger", 
-#                             password = Potato, 
-#                             dbname = r710sqljahu, 
-#                             host = gmd.mpimp-golm.mpg.de)  
+#                             host = "gmd.mpimp-golm.mpg.de",
+#                             port = 3306,
+#                             user = "mpimp-golm\\hsprenger", 
+#                             password = "Potato", 
+#                             dbname = "r710sqljahu")
 ```
 
 
@@ -93,10 +101,10 @@ experiment_id <- func_get_experiment_id("MPI_Feld_2011")
 sort(trost_TagList$experiment)
 
 # combination of both functions
-gmd_meta_mpitest1_2 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Test1_2") , phenotyper_result_joined)
-gmd_meta_mpitest2 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Test2") , phenotyper_result_joined)
-gmd_meta_jkitest1 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Test1") , phenotyper_result_joined)
-gmd_meta_jkitest2 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Test2") , phenotyper_result_joined)
+gmd_meta_mpi_test_1_2 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Test1_2") , phenotyper_result_joined)
+gmd_meta_mpi_test_2 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Test2") , phenotyper_result_joined)
+gmd_meta_jki_test_1 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Test1") , phenotyper_result_joined)
+gmd_meta_jki_test_2 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Test2") , phenotyper_result_joined)
 
 gmd_meta_mpi_field_2011 <- func_get_gmd_metatdata_all( func_get_experiment_id("MPI_Feld_2011") , phenotyper_result_joined)
 gmd_meta_mpi_field_2012 <- func_get_gmd_metatdata_all( func_get_experiment_id("MPI_Feld_2012") , phenotyper_result_joined)
@@ -106,12 +114,12 @@ gmd_meta_dethlingen_2011 <- func_get_gmd_metatdata( func_get_experiment_id("Deth
 
 gmd_meta_jki_shelter_2011 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Shelter_2011") , phenotyper_result_joined)
 gmd_meta_jki_shelter_2012 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Shelter_2012") , phenotyper_result_joined)
-gmd_meta_mpi_pruef1 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Pruef1") , phenotyper_result_joined)
-gmd_meta_mpi_pruef2 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Pruef2") , phenotyper_result_joined)
-gmd_meta_mpi_pruef3 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Pruef3") , phenotyper_result_joined)
+gmd_meta_mpi_pruef_1 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Pruef1") , phenotyper_result_joined)
+gmd_meta_mpi_pruef_2 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Pruef2") , phenotyper_result_joined)
+gmd_meta_mpi_pruef_3 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Pruef3") , phenotyper_result_joined)
 
-gmd_meta_mpi_pruef1 <- gmd_meta_mpi_pruef1[-178,]
-gmd_meta_mpi_pruef2 <- gmd_meta_mpi_pruef2[-48,]
+gmd_meta_mpi_pruef_1 <- gmd_meta_mpi_pruef_1[-178,]
+gmd_meta_mpi_pruef_2 <- gmd_meta_mpi_pruef_2[-48,]
 
 #gmd_meta_breeder_trials <- func_get_gmd_metatdata( func_get_experiment_id("breeder_trials") , phenotyper_result_joined)
 
@@ -123,10 +131,10 @@ gmd_meta_mpi_fgh_2014 <- func_get_gmd_metatdata_all( func_get_experiment_id("MPI
 
 ### save tables with GMD metadata
 ```{r save tables with GMD metadata}
-write.table(gmd_meta_mpitest1_2, "data/gmd_meta_mpitest1_2.txt", sep="\t", quote=FALSE)
-write.table(gmd_meta_mpitest2, "data/gmd_meta_mpitest2.txt", sep="\t", quote=FALSE)
-write.table(gmd_meta_jkitest1, "data/gmd_meta_jkitest1.txt", sep="\t", quote=FALSE)
-write.table(gmd_meta_jkitest2, "data/gmd_meta_jkitest2.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_mpi_test_1_2, "data/gmd_meta_mpi_test_1_2.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_mpi_test_2, "data/gmd_meta_mpi_test_2.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_jki_test_1, "data/gmd_meta_jki_test_1.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_jki_test_2, "data/gmd_meta_jki_test_2.txt", sep="\t", quote=FALSE)
 
 write.table(gmd_meta_mpi_field_2011, "data/gmd_meta_mpi_field_2011.txt", sep="\t", quote=FALSE)
 write.table(gmd_meta_mpi_field_2012, "data/gmd_meta_mpi_field_2012.txt", sep="\t", quote=FALSE)
@@ -136,9 +144,9 @@ write.table(gmd_meta_dethlingen_2011, "data/gmd_meta_dethlingen_2011.txt", sep="
 
 write.table(gmd_meta_jki_shelter_2011, "data/gmd_meta_jki_shelter_2011.txt", sep="\t", quote=FALSE)
 write.table(gmd_meta_jki_shelter_2012, "data/gmd_meta_jki_shelter_2012.txt", sep="\t", quote=FALSE)
-write.table(gmd_meta_mpi_pruef1, "data/gmd_meta_mpi_pruef1.txt", sep="\t", quote=FALSE)
-write.table(gmd_meta_mpi_pruef2, "data/gmd_meta_mpi_pruef2.txt", sep="\t", quote=FALSE)
-write.table(gmd_meta_mpi_pruef3, "data/gmd_meta_mpi_pruef3.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_mpi_pruef_1, "data/gmd_meta_mpi_pruef_1.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_mpi_pruef_2, "data/gmd_meta_mpi_pruef_2.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_mpi_pruef_3, "data/gmd_meta_mpi_pruef_3.txt", sep="\t", quote=FALSE)
 
 write.table(gmd_meta_jki_shelter_2014, "data/gmd_meta_jki_shelter_2014.txt", sep="\t", quote=FALSE)
 write.table(gmd_meta_mpi_fgh_2014, "data/gmd_meta_mpi_fgh_2014.txt", sep="\t", quote=FALSE)
