@@ -1,0 +1,70 @@
+---
+title: "GMD data analysis for MPI field trial 2011"
+author: "Heike Sprenger"
+date: "July 14, 2015"
+output: 
+  html_document:
+    toc: true
+    theme: cerulean
+    number_section: true
+    highlight: tango
+---
+
+# Set working directory
+```{r set working directory}
+# setwd("D:/work/repos/trost_metabolomics")
+# setwd("~/work/repos/trost_metabolomics")
+```
+
+[solution for issue with working directory and knitr](https://github.com/yihui/knitr/issues/277)
+
+# Load workspace, packages and scripts
+```{r load workspace, message=FALSE}
+library(knitr)
+library(pander)
+
+# set options for pander
+panderOptions('table.split.table', 200)
+
+# set options for knitr
+opts_chunk$set(fig.width=5, fig.height=5, cache=FALSE, highlight = TRUE, fig.show="asis")
+# opts_knit$set(root.dir = '../')
+
+# load workspace
+# load("gmd_data_analysis_mpi_field_2011.RData")
+```
+
+
+# Set variables specific for experiment
+```{r Set variables specific for experiment}
+# set experiment string for file names
+experiment_string <- "mpi_field_2011"
+
+# set threshold values for outlier detection, coefficient of variation (cv), shapiro test
+outlier_threshold = 1e-10
+cv_value_threshold = 0.25
+shapiro_threshold = 1e-10
+
+# set factors used for normalization
+all_factors_variable = c("cultivar", "treatment", "sample_time", "SequenceID", "BatchID", "log10_AvgAnnotated")
+keep_factors_variable = c("cultivar", "treatment", "sample_time")
+IA_factors_variable = c("cultivar","treatment", "sample_time")
+
+# set factors for aggregation ???
+
+# sample names corresponding to RNASeq data
+sample_names_variable <- c("t01_a_c", "t01_m_c", "t01_d_c", "t01_s_c", 
+                           "t01_a_d", "t01_m_d", "t01_d_d", "t01_s_d")
+```
+
+
+# Run GMD data analysis according to `gmd_data_analysis.Rmd`
+```{r child='gmd_data_analysis.Rmd'}
+```
+
+
+# Save workspace and sessionInfo
+```{r save workspace}
+save.image("gmd_data_analysis_mpi_field_2011.RData")
+# sessionInfo()
+```
