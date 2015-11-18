@@ -1,10 +1,17 @@
-GMD raw values for all Trost experiments
-========================================================
+---
+title: GMD raw values for all TROST experiments
+author: "Heike Sprenger"
+date: "July 14, 2014"
+output:
+  html_document:
+    highlight: tango
+    number_section: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 4
+---
 
-Date: 14.07.2014  
-Author: Heike Sprenger  
-
-### set working directory
+## Set working directory
 ```{r set working directory}
 # setwd("D:/work/repos/trost_metabolomics")
 # setwd("~/work/repos/trost_metabolomics")
@@ -12,8 +19,8 @@ Author: Heike Sprenger
 
 [solution for issue with working directory and knitr](https://github.com/yihui/knitr/issues/277)
 
-### Load workspace, packages and scripts
-```{r load workspace, message=FALSE}
+## Load workspace, packages and scripts
+```{r load workspace, message=FALSE, warning=FALSE}
 # load packages
 library(knitr)
 library(ggplot2)
@@ -39,16 +46,14 @@ opts_knit$set(root.dir = '../')
 ```
 
 
-### source R functions
+## Source R functions
 ```{r source R functions, include=FALSE}
-source("../libpurzel/colors.R")
-source("../libpurzel/names.R")
 source("../libpurzel/func_get_experiment_id.R")
 source("../libpurzel/func_get_gmd_values.R")
 ```
 
 
-### Set up database connection
+## Set up database connection
 ```{r set up database connection}
 dbhandle <- odbcDriverConnect('driver={SQL Server}; 
                               server=r710sqljahu; 
@@ -67,9 +72,11 @@ dbhandle <- odbcDriverConnect('driver={SQL Server};
 ```
 
 
-## ALL values
-### SQL Query for Intesity values of ALL Analytes and Chromatograms (= Samples) from one Experiment where the Analyte-MST is a quantitative Cluster.
-```{r query for values}
+## Get ALL values
+### SQL query for intesity values 
+**... of ALL Analytes and Chromatograms (= Samples) from one Experiment where the Analyte-MST is a quantitative Cluster**
+
+```{r sql query for intensity values}
 all_values <- sqlQuery(dbhandle, 'SELECT FK_Analyte, 
                                          GMD.tf.IntensityValue.FK_chromatogram, 
                                          SUM(value) 
@@ -93,11 +100,13 @@ head(all_values)
 
 write.table(all_values, "data/gmd_raw_values.txt", sep="\t")
 
-all_values <- read.table("data/gmd_raw_values.txt", sep = "\t", header=TRUE)
+#all_values <- read.table("data/gmd_raw_values.txt", sep = "\t", header=TRUE)
 ```
 
 
-### Reshape the values table to get a matrix with the analytes in columns and chromatograms (= samples) in rows.
+### Reshape the values table 
+**... to get a matrix with the analytes in columns and chromatograms (= samples) in rows**
+
 ```{r reshape values table}
 all_values_cast <- cast(all_values, FK_chromatogram ~ FK_Analyte, value="value")
 all_values_cast <- as.data.frame(all_values_cast)
@@ -110,19 +119,21 @@ dim(all_values_cast)
 rownames(all_values_cast) <- all_values_cast$FK_chromatogram
 all_values_cast <- all_values_cast[, -1]
 dim(all_values_cast)
-# 5723 548
+# 5723 samples (rows)
+# 548 analytes (columns)
 all_values_cast[1:3,1:3]
 
 write.table(all_values_cast, "data/gmd_raw_values_matrix.txt", sep="\t")
 ```
 
 
-### function to get experiment_id
-```{r define experiment id}
+## Get experiment_id
+```{r get experiment id}
 trost_TagList <- read.table("data/trost_TagList.txt", sep="\t", header=TRUE)
 
 experiment_id <- func_get_experiment_id("MPI_Test1_2")
 ```
+
 
 ## Values Per Experiment
 ### Execute GMD values function
@@ -152,7 +163,7 @@ gmd_values_mpi_fgh_2014 <- func_get_gmd_values( func_get_experiment_id("MPI_FGH_
 ```
 
 
-### save tables with GMD values
+### Save tables with GMD values
 ```{r save tables with GMD values}
 write.table(gmd_values_mpi_test_1_2, "data/gmd_values_mpi_test_1_2.txt", sep="\t", quote=FALSE)
 write.table(gmd_values_mpi_test_2, "data/gmd_values_mpi_test_2.txt", sep="\t", quote=FALSE)
@@ -179,8 +190,7 @@ write.table(gmd_values_mpi_fgh_2014, "data/gmd_values_mpi_fgh_2014.txt", sep="\t
 ```
 
 
-
-### sessionInfo
+## Save workspace and sessionInfo
 ```{r sessionInfo}
 save.image("gmd_data.RData")
 sessionInfo()
