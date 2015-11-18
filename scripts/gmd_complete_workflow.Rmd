@@ -1,0 +1,53 @@
+---
+title: "Get GMD data - complete workflow"
+author: "Heike Sprenger"
+date: "November 9, 2015"
+output: 
+  html_document:
+    toc: true
+    theme: cerulean
+    number_section: true
+    highlight: tango
+---
+
+# Load packages and scripts
+```{r load workspace, message=FALSE, warning=FALSE}
+library(knitr)
+library(pander)
+
+# https://github.com/yihui/knitr/commit/470cbbf0111868bb00d1d66693beda326537d789
+# https://github.com/yihui/knitr/issues/957
+options(knitr.duplicate.label = 'allow')
+
+# set options for pander
+panderOptions('table.split.table', 200)
+
+# set options for knitr
+opts_chunk$set(fig.width=5, fig.height=5, cache=FALSE, highlight = TRUE, fig.show="asis")
+# opts_knit$set(root.dir = '../')
+```
+
+
+# Get Phenotyper metadata
+```{r child='phenotyper_metadata.Rmd'}
+```
+
+
+# Get crucial GMD data - first steps
+```{r child='gmd_first_steps.Rmd'}
+```
+
+
+# Get GMD raw values
+```{r child='gmd_raw_values.Rmd'}
+```
+
+
+# Get GMD metadata
+```{r child='gmd_metadata.Rmd'}
+```
+
+
+# Get GMD analytes information
+```{r child='gmd_analytes.Rmd'}
+```
