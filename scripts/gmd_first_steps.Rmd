@@ -1,10 +1,17 @@
-GMD data: first steps
-========================================================
+---
+title: GMD data - first steps
+author: "Heike Sprenger"
+date: "July 14, 2014"
+output:
+  html_document:
+    highlight: tango
+    number_section: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 4
+---
 
-Date: 14.07.2014  
-Author: Heike Sprenger  
-
-### set working directory
+## Set working directory
 ```{r set working directory}
 # setwd("D:/work/repos/trost_metabolomics")
 # setwd("~/work/repos/trost_metabolomics")
@@ -12,8 +19,8 @@ Author: Heike Sprenger
 
 [solution for issue with working directory and knitr](https://github.com/yihui/knitr/issues/277)
 
-### Load workspace, packages and scripts
-```{r load workspace, message=FALSE}
+## Load workspace, packages and scripts
+```{r load workspace, message=FALSE, warning=FALSE}
 # load packages
 library(knitr)
 library(ggplot2)
@@ -38,7 +45,7 @@ opts_knit$set(root.dir = '../')
 ```
 
 
-### Set up database connection
+## Set up database connection
 ```{r set up database connection}
 dbhandle <- odbcDriverConnect('driver={SQL Server}; 
                               server=r710sqljahu; 
@@ -57,7 +64,7 @@ dbhandle <- odbcDriverConnect('driver={SQL Server};
 ```
 
 
-### read table with GMD ids and "real" experiment names
+## Read table with GMD ids and "real" experiment names
 ```{r read table with GMD ids and "real" experiment names}
 gmd_trost_experiments <- read.table("data/gmd_trost_experiments.txt", sep="\t", header=TRUE)
 # order table by ID
@@ -67,17 +74,17 @@ pander(head(gmd_trost_experiments))
 ```
 
 
-### get trost_TagList from GMD
-trost_TagList shows all experiments that belong to the TROST project.
+## Get ``trost_TagList`` from GMD
+**``trost_TagList`` shows all experiments that belong to the TROST/VALDIS project**
 ```{r get trost_TagList from GMD}
 trost_TagList <- sqlQuery(dbhandle, 'select * from tf.TagList where comment=\'trost\' or name like \'%trost%\'')
-levels(trost_TagList$id)
+head(trost_TagList)
 # order table
 trost_TagList <- trost_TagList[order(trost_TagList$id),]
 ```
 
 
-#### join trost_TagList and gmd_trost_experiments tables
+## Join ``trost_TagList`` and ``gmd_trost_experiments`` tables
 ```{r join trost_TagList and gmd_trost_experiments tables}
 trost_TagList <- join(trost_TagList, gmd_trost_experiments, by="id")
 colnames(trost_TagList)
@@ -89,8 +96,11 @@ write.table(trost_TagList, "data/trost_TagList.txt", sep="\t")
 ```
 
 
-### Query for table of ALL TROST chromatogram IDs and respective names (e.g. 11290if_9) from GMD which are used as IDs in Phenotyper
-```{r Query for table of ALL TROST chromatogram IDs and respective names}
+## Query for table of all TROST chromatogram IDs and respective names
+* FK_chromatogram = chromatogram IDs, long IDs (e.g. 06E072D8-B9DE-4BDE-B927-BFF3C4EDDB4B)
+* names (e.g. 11290if_9) from GMD are used as IDs in Phenotyper
+
+```{r query for table of ALL TROST chromatogram IDs and respective names}
 trost_gmd_ids <- sqlQuery(dbhandle, 'SELECT GC_Chromatogram.name, 
                                             tf.IntensityValue.FK_chromatogram 
                                      FROM tf.IntensityValue 
@@ -116,10 +126,11 @@ write.table(trost_gmd_ids, "data/trost_gmd_ids.txt", sep="\t")
 ```
 
 
-### Import TROST phenotyper query results 
-####(gained by metaquery and masterquery --> phenotyper_metadata.Rmd)
-### and join phenotyper results with trost_gmd_ids by common GMD_id
-```{r Import TROST phenotyper query results}
+## Import TROST phenotyper query results 
+
+**gained by metaquery and masterquery --> ``phenotyper_metadata.Rmd``**
+**and join phenotyper results with trost_gmd_ids by common GMD_id**
+```{r import TROST phenotyper query results}
 phenotyper_result_joined <- read.table("data/phenotyper_result_joined.txt", sep="\t", header=TRUE)
 phenotyper_result_joined_valdis <- read.table("data/phenotyper_result_joined_valdis.txt", sep="\t", header=TRUE)
 dim(phenotyper_result_joined_valdis)
@@ -134,29 +145,35 @@ phenotyper_result_joined_with_gmd_ids <- phenotyper_result_joined_with_gmd_ids[o
 write.table(phenotyper_result_joined_with_gmd_ids, "data/phenotyper_result_joined_with_gmd_ids.txt", sep="\t")
 ```
 
-### Import analytes overlap table 
-#### (overlap regarding 6 selected TROST experiments, not the QC experiments) includes 110 analytes (without contaminations/internal standards)
-```{r Import analytes overlap table}
-analytes_6sel_exp <- read.table("data/gmd_metabolites_overlap_6selected_exp.txt", sep="\t", header=TRUE)
+
+## Import analytes overlap table 
+
+**not really necessary because already done in ``gmd_analytes.Rmd``**
+
+* overlap regarding 6 selected TROST experiments, not the QC experiments) includes 110 analytes (without contaminations/internal standards)
+* overlap regarding 7 selected TROST experiments, not the QC experiments) includes 107 analytes (without contaminations/internal standards)
+
+```{r import analytes overlap table}
+#analytes_6sel_exp <- read.table("data/gmd_metabolites_overlap_6selected_exp.txt", sep="\t", header=TRUE)
 #analytes_7sel_exp <- read.table("data/gmd_metabolites_overlap_7selected_exp.txt", sep="\t", header=TRUE, allowEscapes=T)
 
 # number of ALL overlapping analytes
-length(analytes_6sel_exp$analyte)
+#length(analytes_6sel_exp$analyte)
 # 110
 #length(analytes_7sel_exp$analyte)
 # 107
 
 # order table
-analytes_6sel_exp_sort <- analytes_6sel_exp[order(analytes_6sel_exp$analyte),]
+#analytes_6sel_exp_sort <- analytes_6sel_exp[order(analytes_6sel_exp$analyte),]
 #analytes_7sel_exp_sort <- analytes_7sel_exp[order(analytes_7sel_exp$analyte),]
 
 # save sorted table
-write.table(analytes_6sel_exp_sort, "data/analytes_6sel_exp_sort.txt", sep="\t")
+#write.table(analytes_6sel_exp_sort, "data/analytes_6sel_exp_sort.txt", sep="\t")
 #write.table(analytes_7sel_exp_sort, "data/analytes_7sel_exp_sort.txt", sep="\t", eol = "\r")
 ```
 
 
-### sessionInfo
+## SessionInfo
 ```{r sessionInfo}
 sessionInfo()
 ```
