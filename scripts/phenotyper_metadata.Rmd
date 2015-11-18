@@ -1,16 +1,25 @@
-TROST Phenotyper Metadata for GCMS Aliquots
-========================================================
+---
+title: TROST Phenotyper Metadata for GCMS Aliquots
+author: "Heike Sprenger"
+date: "January 15, 2014"
+output:
+  html_document:
+    highlight: tango
+    number_section: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 4
+---
 
-Date: 15.01.2014  
-Author: Heike Sprenger  
-Comment: Das Paket RMySQL konnte nicht installiert werden. Daher das Paket RODBC verwenden, um die Phenotyper DB mit R zu verbinden.   
-Dazu vorher das Programm MySQL Connector ODBC installieren und konfigurieren.   
-http://passionfordata.blogspot.de/2012/04/how-to-integrate-r-with-mysql-database.html  
-http://dev.mysql.com/doc/refman/5.0/en/connector-odbc-configuration-dsn-windows.html#connector-odbc-configuration-dsn-windows-5-1  
+**Comment: Das Paket RMySQL konnte nicht installiert werden. Daher das Paket RODBC verwenden, um die Phenotyper DB mit R zu verbinden.**
+
+* Dazu vorher das Programm MySQL Connector ODBC installieren und konfigurieren.   
+* http://passionfordata.blogspot.de/2012/04/how-to-integrate-r-with-mysql-database.html  
+* http://dev.mysql.com/doc/refman/5.0/en/connector-odbc-configuration-dsn-windows.html#connector-odbc-configuration-dsn-windows-5-1  
 
 **Update: RMySQL statt RODBC verwenden!**
 
-### set working directory
+## Set working directory
 ```{r set working directory}
 # setwd("D:/work/repos/trost_metabolomics")
 # setwd("~/work/repos/trost_metabolomics")
@@ -18,7 +27,7 @@ http://dev.mysql.com/doc/refman/5.0/en/connector-odbc-configuration-dsn-windows.
 
 [solution for issue with working directory and knitr](https://github.com/yihui/knitr/issues/277)
 
-### Load workspace, packages and scripts
+## Load workspace, packages and scripts
 ```{r load workspace, message=FALSE}
 # load packages
 library(knitr)
@@ -45,13 +54,13 @@ opts_knit$set(root.dir = '../')
 ```
 
 
-### source R functions
+## Source R functions
 ```{r source R functions, include=FALSE}
 source("../libpurzel/func_get_phenotyper_data.R")
 ```
 
 
-### Set up database connection
+## Set up database connection
 ```{r set up database connection}
 # dbhandle <- odbcDriverConnect('driver={SQL Server}; 
 #                               server=r710sqljahu; 
@@ -64,11 +73,14 @@ phenotyper <- dbConnect(MySQL(), user=login$user, password=login$passwd, dbname=
 ```
 
 
+## Master Query
+**to get information about FW and calculated DW of aliquots**
+
 ### OLD
-Execute Master Query from ``~\work\repos\database_scripts\master_query.sql`` to get information about FW and calculated DW of aliquots
+Execute Master Query from ``~\work\repos\database_scripts\master_query.sql``
 
 ### NEW
-Execute Master Query from ``~\work\repos\database_scripts\masterquery-2014-03-12.sql`` to get information about FW and calculated DW of aliquots
+Execute Master Query from ``~\work\repos\database_scripts\masterquery-2014-03-12.sql``
 
 ```{r master query}
 master_query_result_2014_03_12 <- func_use_master_query()
@@ -76,20 +88,22 @@ pander(head(master_query_result_2014_03_12))
 write.table(master_query_result_2014_03_12, "data/master_query_result_2014_03_12.txt", sep="\t")
 ```
 
+## Meta Query
+**to get information about cultivar, treatment, sample_time, culture of aliquots etc.**
+
 ### OLD
-Execute Meta Query from ``~\work\repos\database_scripts\metaquery-2013-12-18.sql`` to get information about cultivar, treatment, sample_time, culture of aliquots etc.  
+Execute Meta Query from ``~\work\repos\database_scripts\metaquery-2013-12-18.sql``
 
 BEFORE: FIRST execute the lines 1 to 10547 in the metaquery by MySQL Workbench to create temporary tables!  
 AFTER executing the SELECT query in R execute the last two lines of the metaquery by MySQL Workbench to delete temporary tables!  
 
 ### OLD
-Execute Meta Query from ``~\work\repos\database_scripts\metaquery-2014-01-28.sql`` to get information about cultivar, treatment, sample_time, culture of aliquots etc.  
+Execute Meta Query from ``~\work\repos\database_scripts\metaquery-2014-01-28.sql`` 
 
 No other executions necessary anymore because tables are already existing (not temporary)!
 
 ### NEW
-Execute Meta Query from ``~\work\repos\database_scripts\metaquery-2014-06-24.sql`` to get information about cultivar, treatment, sample_time, culture of aliquots etc.  
-
+Execute Meta Query from ``~\work\repos\database_scripts\metaquery-2014-06-24.sql`` 
 
 ```{r meta query}
 meta_query_result_2014_06_24 <- func_use_meta_query()
@@ -98,7 +112,7 @@ write.table(meta_query_result_2014_06_24, "data/meta_query_result_2014_06_24.txt
 ```
 
 
-### dimensions of both result tables and missing IDs in master_query_result
+## Dimensions of both result tables and missing IDs in master_query_result
 ```{r dimensions of both result tables}
 dim(master_query_result_2014_03_12)
 # 3745 12
@@ -119,7 +133,7 @@ setdiff(meta_query_result_2014_06_24$GMD_id, master_query_result_2014_03_12$GMD_
 - FW und DW of aliquot **1264318** (SampleID: 881811, MPI field 2012) missing, file: "trost_2012_06_19_5.txt", "trost_2012_06_21_1.txt" 
 
 
-### join both result tables
+## Join both result tables
 ```{r join both result tables}
 # join by gmd_id
 phenotyper_result_joined <- join(meta_query_result_2014_06_24, master_query_result_2014_03_12, by = "GMD_id" )
@@ -143,8 +157,9 @@ write.table(phenotyper_result_joined_valdis, "data/phenotyper_result_joined_vald
 ```
 
 
-### save workspace
+## Save workspace and sessionInfo
 ```{r save workspace}
 save.image("phenotyper.RData")
+sessionInfo()
 ```
 
