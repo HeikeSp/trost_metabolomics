@@ -1,0 +1,270 @@
+---
+title: "GMD analytes for all Trost experiments"
+author: "Heike Sprenger"
+date: "Friday, November 06, 2015"
+output:
+  html_document:
+    highlight: tango
+    number_section: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 4
+---
+
+## Set working directory
+```{r set working directory}
+# setwd("D:/work/repos/trost_metabolomics")
+# setwd("~/work/repos/trost_metabolomics")
+```
+
+[solution for issue with working directory and knitr](https://github.com/yihui/knitr/issues/277)
+
+## Load workspace, packages and scripts
+```{r load workspace, message=FALSE, warning=FALSE}
+# load packages
+library(knitr)
+library(ggplot2)
+library(reshape)
+library(reshape2)
+library(pander)
+library(plyr)
+library(RODBC)
+library(DT)
+# library(RMySQL)
+# library(yaml)
+
+# set options for pander
+panderOptions('table.split.table', 200)
+
+# set options for knitr
+opts_chunk$set(fig.width=5, fig.height=5, cache=FALSE, highlight = TRUE, fig.show="asis")
+opts_knit$set(root.dir = '../')
+
+# options(width=600)
+
+# load workspace
+# load("gmd_data.RData")
+```
+
+
+## Source R functions
+```{r source R functions}
+source("../libpurzel/func_get_experiment_id.R")
+source("../libpurzel/func_get_gmd_analytes.R")
+source("../libpurzel/func_create_analytes_table.R")
+```
+
+
+## Set up database connection
+```{r set up database connection}
+dbhandle <- odbcDriverConnect('driver={SQL Server}; 
+                              server=r710sqljahu; 
+                              database=GMD; 
+                              trusted_connection=true')
+```
+
+
+## Function to get experiment_id
+```{r define experiment id}
+trost_TagList <- read.table("data/trost_TagList.txt", sep="\t", header=TRUE)
+
+experiment_id <- func_get_experiment_id("JKI_Shelter_2014")
+```
+
+
+## Load ALL GMD raw values
+```{r load ALL GMD raw values}
+all_values_cast <- read.table("data/gmd_raw_values_matrix.txt", sep = "\t", header = T, check.names = F)
+
+dim(all_values_cast)
+# 5723 samples
+# 548 analytes
+
+pander(all_values_cast[1:3,1:3])
+```
+
+
+## Get analytes for specific experiment
+```{r get analytes for specific experiment}
+
+gmd_analytes_jki_shelter_2014 <- func_get_gmd_analytes( func_get_experiment_id("JKI_Shelter_2014") )
+
+gmd_analytes_mpi_test_1 <- func_get_gmd_analytes( func_get_experiment_id("MPI_Test1_2") )
+gmd_analytes_mpi_test_2 <- func_get_gmd_analytes( func_get_experiment_id("MPI_Test2") )
+gmd_analytes_jki_test_1 <- func_get_gmd_analytes( func_get_experiment_id("JKI_Test1") )
+gmd_analytes_jki_test_2 <- func_get_gmd_analytes( func_get_experiment_id("JKI_Test2") )
+gmd_analytes_mpi_feld_2011 <- func_get_gmd_analytes( func_get_experiment_id("MPI_Feld_2011") )
+gmd_analytes_mpi_feld_2012 <- func_get_gmd_analytes( func_get_experiment_id("MPI_Feld_2012") )
+gmd_analytes_jki_feld_2012 <- func_get_gmd_analytes( func_get_experiment_id("JKI_Feld_2012") )
+
+# overlap
+gmd_analytes_overlap_6 <- Reduce(intersect, list(gmd_analytes_mpi_test_1$analyteID,
+                              gmd_analytes_mpi_test_2$analyteID,
+                              gmd_analytes_jki_test_1$analyteID,
+                              gmd_analytes_mpi_feld_2011$analyteID,
+                              gmd_analytes_mpi_feld_2012$analyteID,
+                              gmd_analytes_jki_feld_2012$analyteID))
+
+gmd_analytes_overlap_7 <- Reduce(intersect, list(gmd_analytes_mpi_test_1$analyteID,
+                              gmd_analytes_mpi_test_2$analyteID,
+                              gmd_analytes_jki_test_1$analyteID,
+                              gmd_analytes_jki_test_2$analyteID,
+                              gmd_analytes_mpi_feld_2011$analyteID,
+                              gmd_analytes_mpi_feld_2012$analyteID,
+                              gmd_analytes_jki_feld_2012$analyteID))
+
+length(gmd_analytes_overlap_6)
+length(gmd_analytes_overlap_7)
+
+# for all trost/valdis experiments
+gmd_analytes <- func_get_all_gmd_analytes()
+# 551 analytes
+pander(head(gmd_analytes))
+```
+
+
+## Load inventory list (from AG Kopka)
+Problem with hash "#" symbol http://stackoverflow.com/questions/7086945/how-can-read-numeral-signs-as-part-of-a-column-header
+```{r load inventory list}
+inventory_list <- read.table("data/inventory_AFE.txt", header = T, sep = "\t", check.names = F, comment.char = "")
+inventory_list_part <- inventory_list[, 1:12]
+colnames(inventory_list_part)
+
+# use DT library to show a formatted table
+datatable(inventory_list_part) %>%
+  formatStyle(
+    'Class',
+    backgroundColor = styleEqual(
+      c("Reagent (Contamination)", "Internal Standard (Retention Time)"), c('red','orange')
+    )
+  )
+
+length(intersect(gmd_analytes$analyteID, inventory_list[,1]))
+length(intersect(gmd_analytes_overlap_6, inventory_list[,1]))
+length(intersect(gmd_analytes_overlap_7, inventory_list[,1]))
+
+inventory_list_subset_6 <- subset(inventory_list, inventory_list[,1] %in% gmd_analytes_overlap_6)
+inventory_list_subset_7 <- subset(inventory_list, inventory_list[,1] %in% gmd_analytes_overlap_7)
+
+write.table(inventory_list_subset_6, "data/inventory_list_subset_6exp.txt", sep = "\t", row.names = F)
+write.table(inventory_list_subset_7, "data/inventory_list_subset_7exp.txt", sep = "\t", row.names = F)
+```
+
+
+## Remove several analytes
+
+**remove internal standards and contaminations**
+
+**remove analytes that are present as duplicates, prefer the other derivate of the same metabolite**
+
+* A117006-101, Proline
+* A152002-101, Aspartic acid
+* A163001-101, Glutamic acid
+* A177004-101, Glucose
+* A180002-101, Fructose
+* A187002-101, Fructose
+* A189002-101, Glucose
+* A239001-101, Glucose-6-phosphate
+
+```{r remove several analytes}
+analytes_to_remove <- which(inventory_list_part$Class %in% c("Internal Standard (Quantification)",
+                                                             "Internal Standard (Retention Time)",
+                                                             "Reagent (Contamination)") |
+                            inventory_list_part$MPIMP_ID_Analyte %in% c("A117006-101", "A152002-101", 
+                                                                        "A163001-101", "A177004-101",
+                                                                        "A180002-101", "A187002-101",
+                                                                        "A189002-101", "A239001-101"))
+
+# create additional column for selected/removed analytes
+inventory_list_part$select <- "select"
+inventory_list_part$select[analytes_to_remove] <- "remove"
+```
+
+
+## Join gmd_analytes table and inventory list
+```{r join gmd_analytes table and inventory list}
+gmd_analytes_inventory <- merge(gmd_analytes, inventory_list_part, 
+                                by.x = "analyteID", by.y = "MPIMP_ID_Analyte")
+```
+
+
+## Define sets of specific experiments
+```{r define sets of specific experiments}
+# 6 experiments used for publication
+experiments_6 <- c("MPI_Test1_2", "MPI_Test2", "JKI_Test1", 
+                   "MPI_Feld_2011", "MPI_Feld_2012", "JKI_Feld_2012")
+
+# 7 experiments used for PhD thesis
+experiments_7 <- c("MPI_Test1_2", "MPI_Test2", "JKI_Test1", 
+                   "JKI_Test2", "MPI_Feld_2011", "MPI_Feld_2012", "JKI_Feld_2012")
+
+# including all TROST experiments
+experiments_15 <- c("MPI_Test1_2", "MPI_Test2", "JKI_Test1", "JKI_Test2", 
+                    "MPI_Feld_2011", "MPI_Feld_2012", "JKI_Feld_2012", "JKI_Feld_2012", "Dethlingen_2011",
+                    "JKI_Shelter_2011", "JKI_Shelter_2012", "MPI_Pruef1", "MPI_Pruef2", "MPI_Pruef3",
+                    "breeder_trials")
+
+# including all TROST and VALDIS experiments
+experiments_17 <- c("MPI_Test1_2", "MPI_Test2", "JKI_Test1", "JKI_Test2", 
+                    "MPI_Feld_2011", "MPI_Feld_2012", "JKI_Feld_2012", "JKI_Feld_2012", "Dethlingen_2011",
+                    "JKI_Shelter_2011", "JKI_Shelter_2012", "MPI_Pruef1", "MPI_Pruef2", "MPI_Pruef3",
+                    "breeder_trials", "JKI_Shelter_2014", "MPI_FGH_2014")
+```
+
+
+## Create analytes table for all experiments
+
+**use function to create an analytes table with additional columns per single experiment**
+**each single column states "yes" or "no" if analyte was annotated in a specific experiment**
+```{r create analytes table for all experiments}
+analytes_table_6 <- func_create_analytes_table(gmd_analytes_inventory, experiments_6)
+analytes_table_7 <- func_create_analytes_table(gmd_analytes_inventory, experiments_7)
+analytes_table_15 <- func_create_analytes_table(gmd_analytes_inventory, experiments_15)
+analytes_table_17 <- func_create_analytes_table(gmd_analytes_inventory, experiments_17)
+
+analytes_table_6_overlap <- subset(analytes_table_6, analytes_table_6$count_yes == 6)
+analytes_table_7_overlap <- subset(analytes_table_7, analytes_table_7$count_yes == 7)
+
+# use only the selected analytes to get rid of internal standards and contaminations
+analytes_table_6_overlap_select <- subset(analytes_table_6_overlap, 
+                                          analytes_table_6_overlap$select == "select")
+
+analytes_table_7_overlap_select <- subset(analytes_table_7_overlap, 
+                                          analytes_table_7_overlap$select == "select")
+
+dim(analytes_table_6_overlap_select)
+dim(analytes_table_7_overlap_select)
+```
+
+
+## Save filtered analytes table for specific experimental sets
+```{r save filtered analytes table for specific experimental sets}
+# order by FK_Analyte ID
+analytes_table_6_overlap_select_ordered <- analytes_table_6_overlap_select[order(analytes_table_6_overlap_select$FK_Analyte), ]
+analytes_table_7_overlap_select_ordered <- analytes_table_7_overlap_select[order(analytes_table_7_overlap_select$FK_Analyte), ]
+
+write.table(analytes_table_6_overlap_select, "data/analytes_table_6exp_overlap_select.txt", 
+            sep="\t", row.names = F)
+write.table(analytes_table_7_overlap_select, "data/analytes_table_7exp_overlap_select.txt", 
+            sep="\t", row.names = F)
+
+write.table(analytes_table_6_overlap_select_ordered, "data/analytes_table_6exp_overlap_select_ordered.txt", 
+            sep="\t", row.names = F)
+write.table(analytes_table_7_overlap_select_ordered, "data/analytes_table_7exp_overlap_select_ordered.txt", 
+            sep="\t", row.names = F)
+```
+
+
+### Which analytes have long names
+**Could be used to create new lines in analyte name**
+```{r which analytes have long names}
+long_names_idx <- which(unlist(lapply(as.character(analytes_table_7_overlap_select_ordered$Name), nchar)) > 20)
+analytes_table_7_overlap_select_ordered$Name[long_names_idx]
+```
+
+
+## SessionInfo
+```{r sessionInfo}
+save.image("gmd_data.RData")
+sessionInfo()
+```
