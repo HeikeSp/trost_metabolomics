@@ -1,0 +1,225 @@
+---
+title: "GMD subset for specific samples and analytes"
+author: "Heike Sprenger"
+date: "Friday, November 06, 2015"
+output:
+  html_document:
+    highlight: tango
+    number_section: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 4
+---
+
+# Set working directory
+```{r set working directory}
+# setwd("D:/work/repos/trost_metabolomics")
+# setwd("~/work/repos/trost_metabolomics")
+```
+
+[solution for issue with working directory and knitr](https://github.com/yihui/knitr/issues/277)
+
+# Load workspace, packages and scripts
+```{r load workspace, message=FALSE, warning=FALSE}
+# load packages
+library(knitr)
+library(ggplot2)
+library(reshape)
+library(reshape2)
+library(pander)
+library(plyr)
+library(DT)
+
+# set options for pander
+panderOptions('table.split.table', 200)
+
+# set options for knitr
+opts_chunk$set(fig.width=5, fig.height=5, cache=FALSE, highlight = TRUE, fig.show="asis")
+opts_knit$set(root.dir = '../')
+
+# options(width=600)
+
+# load workspace
+# load("gmd_data.RData")
+```
+
+
+# Source R functions
+```{r source R functions}
+source("../libpurzel/func_compile_subset.R")
+```
+
+
+# Load data
+## Load gmd raw data for all TROST/VALDIS experiments
+Created with `gmd_raw_values.Rmd`
+```{r load gmd raw data for all TROST/VALDIS experiments}
+all_values_cast <- read.table("data/gmd_raw_values_matrix.txt", sep = "\t", header = T, check.names = F)
+dim(all_values_cast)
+# rows: samples (5723)
+# cols: analytes (548)
+
+# transpose raw data
+all_values_t <- as.data.frame(t(all_values_cast))
+
+dim(all_values_t)
+# rows: analytes (548)
+# columns: samples (5723)
+```
+
+
+## Load normalized data for pot/field experiments
+**Data were normalized separately per cultivation type!**
+```{r load normalized data for pot/field experiments}
+# 3 pot experiments
+values_3exp_pot_late_before <- 
+  read.table("../../TROST/GC-MS/Publication/output/merge_pot_experiments/values_norm_log10_late_before_woOutlier.txt", 
+             header = T, sep = "\t", check.names = F)
+dim(values_3exp_pot_late_before)
+# rows: 72 samples
+# columns: 107 analytes
+
+# 3 field experiments
+values_3exp_field_late <- 
+  read.table("../../TROST/GC-MS/Publication/output/merge_field_experiments_late/values_norm_log10.txt", 
+             header = T, sep = "\t", check.names = F)
+dim(values_3exp_field_late)
+# rows: 144 samples
+# columns: 107 analytes
+```
+
+
+### Combine normalized data for pot/field experiments
+```{r combine normalized data for pot/field experiments}
+values_6exp_normalized <- rbind(values_3exp_pot_late_before,
+                                values_3exp_field_late)
+
+dim(values_6exp_normalized)
+# rows: 216 samples
+# columns: 107 analytes
+
+# transpose normalized data
+values_6exp_normalized_t <- as.data.frame(t(values_6exp_normalized))
+dim(values_6exp_normalized_t)
+# rows: 107 analytes
+# columns: 216 samples
+
+# order normalized data by colnames (sampleID) and rownames (analyteID)
+values_6exp_normalized_t_ordered <- values_6exp_normalized_t[order(rownames(values_6exp_normalized_t)),
+                                                             order(colnames(values_6exp_normalized_t))]
+```
+
+
+# Load sample_lists
+## Load sample_list of 6 experiments (for publication)
+Created with:
+
+* `merge_all_experiments_late.Rmd` for all 6 experiments
+* `merge_pot_experiments_late_before.Rmd` for 3 pot experiments
+* `merge_field_experiments_late.Rmd` for 3 field experiments
+
+(folder: TROST/GC-MS/Publication/scripts)
+
+```{r load sample_list of 6 experiments}
+# all 6 experiments
+sample_list_6exp <- read.table("../../TROST/GC-MS/Publication/output/merge_all_experiments_late/factors.txt",
+                               header = T, sep = "\t")
+dim(sample_list_6exp)
+# 216 samples (rows)
+
+# add column with experiment ID for publication
+sample_list_6exp$experiment <- sample_list_6exp$trial
+levels(sample_list_6exp$experiment) <- c("F4", "G3", "F1", "F2", "G1", "G2")
+levels(sample_list_6exp$trial)
+
+# change order of experiment levels
+sample_list_6exp$experiment <- factor(sample_list_6exp$experiment, levels = c("G1", "G2", "G3", "F1", "F2", "F4"))
+pander(table(sample_list_6exp$trial, sample_list_6exp$experiment))
+
+# order sample_list by chromtogram ID
+sample_list_6exp_ordered <- sample_list_6exp[order(sample_list_6exp$chromatogram),]
+
+# order sample_list by experiment, treatment, cultivar
+sample_list_6exp_ordered2 <- sample_list_6exp[order(sample_list_6exp$experiment, 
+                                                    sample_list_6exp$treatment, 
+                                                    sample_list_6exp$cultivar),]
+```
+
+
+## Load sample list of greenhouse and field data separately
+```{r load sample list of greenhouse and field data separately}
+# 3 field experiments
+sample_list_3exp_field_late <- read.table("../../TROST/GC-MS/Publication/output/merge_field_experiments_late/factors.txt",
+                               header = T, sep = "\t")
+dim(sample_list_3exp_field_late)
+
+# 3 pot experiments
+sample_list_3exp_pot_late_before <- read.table("../../TROST/GC-MS/Publication/output/merge_pot_experiments/factors_late_before.txt",
+                               header = T, sep = "\t")
+dim(sample_list_3exp_pot_late_before)
+```
+
+
+# Load subset of analytes list (107, for 7 experiments)
+Created with `gmd_analytes.Rmd`
+```{r load subset of analytes list}
+analytes_table_7_overlap_select <- read.table("data/analytes_table_7exp_overlap_select.txt",
+                                              header = T, sep = "\t")
+dim(analytes_table_7_overlap_select)
+# 107 analytes (rows)
+head(analytes_table_7_overlap_select$FK_Analyte)
+```
+
+
+## Select only part of analytes list that is needed for supplemental table
+```{r select only part of analytes list that is needed for supplemental table}
+analytes_table_7_overlap_supp <- subset(analytes_table_7_overlap_select,
+                                        select = c("FK_Analyte","Name", "Class", "MPIMP_ID_Metabolite", 
+                                                   "Sum_Formula", "KEGG_ID_Metabolite", "CAS_ID_Metabolite",
+                                                   "Derivative", "analyteID", "CAS_ID_Analyte"))
+
+pander(head(analytes_table_7_overlap_supp))
+```
+
+
+# Apply func_compile_subset
+## Apply func_compile_subset for raw data
+```{r apply func_compile_subset for raw data}
+raw_data_subset <- func_compile_subset(raw_data = all_values_t, 
+                                       sample_ids = sample_list_6exp$chromatogram,
+                                       analyte_ids = analytes_table_7_overlap_supp$FK_Analyte,
+                                       sample_list = sample_list_6exp_ordered,
+                                       analyte_list = analytes_table_7_overlap_supp)
+dim(raw_data_subset)
+# rows: 107 analytes
+# columns: 225 = 216 samples + 9 columns with additional information about analytes
+
+sample_list_6exp_ordered2_part <- subset(sample_list_6exp_ordered2, 
+                                         select = c("cultivar", "treatment", "experiment", "cultivation"))
+```
+
+
+## Apply func_compile_subset for normalized data
+```{r apply func_compile_subset for normalized data}
+normalized_data_subset <- func_compile_subset(raw_data = values_6exp_normalized_t_ordered, 
+                                       sample_ids = sample_list_6exp$chromatogram,
+                                       analyte_ids = analytes_table_7_overlap_supp$FK_Analyte,
+                                       sample_list = sample_list_6exp_ordered,
+                                       analyte_list = analytes_table_7_overlap_supp)
+dim(normalized_data_subset)
+```
+
+
+# Save final supplemental table for manuscript
+```{r save final supplemental table for manuscript}
+write.table(raw_data_subset, "output/supplemental_table_6exp_raw_data.txt", sep = "\t", row.names = F)
+write.table(normalized_data_subset, "output/supplemental_table_6exp_normalized_data.txt", sep = "\t", row.names = F)
+write.table(sample_list_6exp_ordered2_part, "output/supplemental_table_6exp_description.txt", sep = "\t", row.names = F)
+```
+
+
+# SessionInfo
+```{r sessionInfo}
+save.image("gmd_data.RData")
+sessionInfo()
+```
