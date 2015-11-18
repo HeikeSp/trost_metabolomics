@@ -3,23 +3,46 @@ library(RODBC)
 
 ### Set up database connection
 
-dbhandle <- odbcDriverConnect('driver={SQL Server}; 
-                              server=r710sqljahu; 
-                              database=GMD; 
-                              trusted_connection=true')
+dbhandle <- odbcDriverConnect('driver = {SQL Server}; 
+                              server = r710sqljahu; 
+                              database = GMD; 
+                              trusted_connection = true')
 
 # Create a connection to the database called "channel"
-#channel <- odbcConnect("r710sqljahu", uid="MPIMP-GOLM\HSprenger", pwd="Potato", believeNRows=FALSE)
-odbcDriverConnect(connection="server=r710sqljahu;database=GMD;trusted_connection=true;Port=1433;driver={SQL Server};TDS_Version=7.0;")
-odbcDriverConnect(connection="server=gmd.mpimp-golm.mpg.de;database=r710sqljahu;uid=MPIMP-GOLM\\HSprenger;pwd=Potato;Port=1433;driver=FreeTDS;TDS_Version=7.0;")
+#channel <- odbcConnect("r710sqljahu", uid="MPIMP-GOLM\HSprenger", pwd="Prenzlau", believeNRows=FALSE)
+
+conn <- odbcConnect("gmd", "MPIMP-GOLM\\HSprenger", "Prenzlau")
+
+odbcDriverConnect(connection = 
+                    "server = r710sqljahu;
+                    database = GMD;
+                    trusted_connection = true;
+                    Port = 135;
+                    driver = {SQL Server};
+                    TDS_Version = 8.0;")
+
+odbcDriverConnect(connection = 
+                    "server = gmd.mpimp-golm.mpg.de;
+                    database = r710sqljahu;
+                    uid = MPIMP-GOLM\\HSprenger; 
+                    pwd = Prenzlau;
+                    Port = 135;
+                    driver = FreeTDS;
+                    TDS_Version = 8.0;")
+
+
+dbconnection <- odbcDriverConnect(connection='driver={SQL Server};server=gmd.mpimp-golm.mpg.de;database=r710sqljahu;uid=MPIMP-GOLM\\HSprenger;pwd=Prenzlau;trusted_connection=true')
+odbcDriverConnect(connection='driver={SQL Server};server=r710sqljahu;uid=MPIMP-GOLM\\HSprenger;pwd=Prenzlau')
+odbcDriverConnect(connection='driver={SQL Server};server=gmd.mpimp-golm.mpg.de;database=r710sqljahu;uid=MPIMP-GOLM\\HSprenger;pwd=Prenzlau;trusted_connection=true')
+
 
 # login <- yaml.load_file("../libpurzel/login.yaml")
 
 # phenotyper <- dbConnect(MySQL(), user=login$user, password=login$passwd, dbname=login$db, host=login$host)  
 
 gmd_connection <- dbConnect(MySQL(), 
-                            user = "MPIMP-GOLM\\HSprenger", 
-                            password = "Potato", 
+                            user = "MPIMP-GOLM\HSprenger", 
+                            password = "Prenzlau", 
                             dbname = "r710sqljahu", 
                             host = "gmd.mpimp-golm.mpg.de")  
 
@@ -45,3 +68,27 @@ all_values <- sqlQuery(dbhandle, 'SELECT FK_Analyte,
 # Change colname
 dim(all_values)
 # 1055975      3
+
+
+##################################
+
+
+library(RSQLServer)
+conn <- dbConnect(RSQLServer::SQLServer(), "141.14.244.147", "useNTLMv2=false;user=MPIMP-GOLM\\HSprenger;Password=Prenzlau", database = "r710sqljahu")
+
+gmd_conn <- dbConnect(RSQLServer::SQLServer(), "GMD", database = "r710sqljahu")
+
+
+# from: http://blog.revolutionanalytics.com/2015/08/using-azure-as-an-r-datasource-part-4-pulling-data-from-sql-server-to-linux.html
+
+library(RODBC)
+connStr <- "141.14.244.147;uid=MPIMP-GOLM\\HSprenger;pwd=Prenzlau;Database=r710sqljahu" # regular info
+connStr <- paste0(connStr, ";Driver=FreeTDS;TDS_Version=8.0;Port=135") # FreeTDS specific info
+conn <- odbcDriverConnect(connStr)
+
+# sqlQuery(conn, "select serverproperty('ProductLevel') as [Product Level], db_name() as [Database name]")
+close(conn)
+
+
+
+
