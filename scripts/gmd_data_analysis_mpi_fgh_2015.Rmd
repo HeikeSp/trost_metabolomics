@@ -1,0 +1,780 @@
+---
+title: GMD data analysis of MPI FGH 2015
+author: "Heike Sprenger"
+date: "January 19, 2016"
+output:
+  html_document:
+    highlight: tango
+    number_section: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 4
+---
+
+# `r paste("GMD data analysis for experiment:", experiment_string, Sys.Date(), sep=" ")`
+*This is the experiment which is used for metabolite data analysis*
+
+http://stackoverflow.com/questions/31861569/setting-document-title-in-rmarkdown-from-parameters
+
+# Set pander and knitr options
+```{r set pander and knitr options, message=FALSE}
+library(knitr)
+library(pander)
+
+# set options for pander
+panderOptions('table.split.table', 200)
+
+# set options for knitr
+opts_chunk$set(fig.width=5, fig.height=5, cache=FALSE, highlight = TRUE, fig.show="asis")
+opts_knit$set(root.dir = '../')
+```
+
+
+# Load packages and functions for metabolite data analysis
+```{r load packages and functions for metabolite data analysis, message=FALSE, fig.show='hide'}
+# load packages
+source("../functions/func_load_packages_metabolite_data_analysis.R")
+
+# load functions
+source("../functions/func_load_functions_metabolite_data_analysis.R")
+
+source("../functions/names.R")
+source("../functions/colors.R")
+```
+
+
+# Paste file names with experiment_string
+```{r paste file names with experiment_string, tidy=TRUE}
+
+# Set variables specific for experiment
+# Set experiment string for file names
+experiment_string <- "mpi_fgh_2015"
+
+file_gmd_values <- paste("data/gmd_values_", experiment_string, ".txt", sep = "")
+file_gmd_meta <- paste("data/gmd_meta_", experiment_string, ".txt", sep = "")
+
+file_gmd_values_select <- paste("output/", experiment_string, "/gmd_values_select.txt", sep = "")
+file_gmd_values_select_log10 <- paste("output/", experiment_string, "/gmd_values_select_log10.txt", sep = "")
+file_gmd_values_select_log10_woNA <- paste("output/", experiment_string, "/gmd_values_select_log10_woNA.txt", sep = "")
+
+file_values_norm_log10_woOutlier <- paste("output/", experiment_string, "/values_norm_log10_woOutlier.txt", sep = "")
+file_gmd_values_select_log10_woOutlier <- paste("output/", experiment_string, "/gmd_values_select_log10_woOutlier.txt", sep = "")
+```
+
+
+# Load data
+## Load phenotyper results
+this table comes from ``phenotyper_metadata.Rmd``
+```{r load phenotyper results}
+phenotyper_result_joined <- read.table("data/phenotyper_result_joined_with_gmd_ids.txt", 
+                                       sep="\t", header=TRUE)
+```
+
+
+## Load analytes table
+this table comes from ``gmd_analytes.Rmd``
+```{r load analytes table}
+analytes_sel_exp_sort <- read.table("data/analytes_table_7exp_overlap_select_ordered.txt", 
+                                    sep="\t", header=TRUE, allowEscapes = T)
+
+dim(analytes_sel_exp_sort)
+# 107 22
+
+# 91 selected analytes for modelling!
+analytes_sel_model <- read.table("data/analytes_15sel_exp_sort_new.txt", sep="\t", header=TRUE, allowEscapes = T)
+dim(analytes_sel_model)
+# 91 11
+
+
+# Import analytes overlap table (overlap regarding 17 measured TROST experiments, not the QC experiments) includes 81 analytes
+analytes_valdis <- read.table("data/analytes_17sel_exp_sort_valdis.txt", sep="\t", header=TRUE)
+analytes_valdis <- subset(analytes_valdis, analytes_valdis$select_part=="yes")
+analytes_valdis <- analytes_valdis[order(analytes_valdis$analyte),]
+length(analytes_valdis$name)
+# 81
+
+# change colname of analyte ID (from GMD)
+colnames(analytes_valdis)[11] <- "FK_Analyte"
+```
+
+
+## Load tables with GMD values and metadata
+```{r load tables with GMD values and metadata}
+gmd_values <- read.table(file_gmd_values, sep="\t", header=TRUE, check.names=FALSE)
+dim(gmd_values)
+
+gmd_meta <- read.table(file_gmd_meta, sep="\t", header=TRUE)
+dim(gmd_meta)
+colnames(gmd_meta)
+
+# remove Desiree samples
+idx_desiree <- which(gmd_meta$cultivar == "Desiree")
+gmd_meta_final <- gmd_meta[-idx_desiree,]
+dim(gmd_meta_final)
+# 250 samples
+```
+
+
+# Define subset of selected chromatograms 
+## PART: only biological samples -> without blanks, multimix, etc.
+```{r subset of chromatograms}
+gmd_values_part <- subset(gmd_values, rownames(gmd_values) %in% gmd_meta_final$chromatogram)
+print(dim(gmd_values_part))
+# 250 234
+```
+
+
+## Remove outlier, see chunk XXX: find outlier
+```{r remove outlier, see chunk XXX: find outlier}
+# which(rownames(gmd_values_part)=="098BC4DF-28D8-4966-A089-E6F2B0405EDF")
+# # 23
+# gmd_values_part <- gmd_values_part[-23,]
+# 
+# which(gmd_meta$chromatogram =="098BC4DF-28D8-4966-A089-E6F2B0405EDF")
+# # 23
+# gmd_meta <- gmd_meta[-23,]
+```
+
+
+# Define subset of overlapping analytes
+## SELECT: `r nrow(analytes_sel_exp_sort)` overlapping analytes regarding 7 TROST experiments, WITHOUT internal standards and contaminations
+```{r subset of analytes}
+gmd_values_select <- func_get_overlapping_analytes(analytes_sel_exp_sort, gmd_values_part)
+dim(gmd_values_select)
+# 250 samples, 99 analytes
+
+analytes_sel_exp_sort_idx <- which(analytes_sel_exp_sort$FK_Analyte %in% colnames(gmd_values_select))
+analytes_sel_exp_sort_mpi_fgh_2015 <- analytes_sel_exp_sort[analytes_sel_exp_sort_idx,]
+
+gmd_values_select_valdis <- func_get_overlapping_analytes(analytes_valdis, gmd_values_part)
+dim(gmd_values_select_valdis)
+# 250 samples, 79 analytes (out of 81)
+
+#gmd_values_select_model <- func_get_overlapping_analytes(analytes_sel_model, gmd_values_part)
+
+write.table(gmd_values_select, file_gmd_values_select, sep="\t")
+```
+
+
+# Replace NAs with minimal values of dataset and calculate LOG10 of raw intensity values 
+```{r replace NAs and calc LOG10 of raw values}
+# log10 transformation (with NAs)
+gmd_values_select_log10 <- log10(gmd_values_select)
+
+# replace NAs with lowest value of dataset
+gmd_values_select_woNA <- func_replace_na_with_min_value(gmd_values_select)
+
+# log10 transformation after NA replacement -> without NAs 
+gmd_values_select_log10_woNA <- log10(gmd_values_select_woNA)
+
+sum(is.na(gmd_values_select_log10))
+sum(is.na(gmd_values_select_log10_woNA))
+
+write.table(gmd_values_select_log10, file_gmd_values_select_log10, sep="\t")
+write.table(gmd_values_select_log10_woNA, file_gmd_values_select_log10_woNA, sep="\t")
+```
+
+
+# Calculate percentage of NAs and plot histograms
+
+* print percentage of NAs, number of analytes with more than 40% NAs and ID of those analytes
+
+```{r calculate percentage of NAs and plot histograms}
+func_print_na_statistics(gmd_values_select, analytes_sel_exp_sort)
+
+pdf(paste("figures/", experiment_string, "/NAs_hist.pdf", sep=""))
+func_plot_na_statistics(gmd_values_select)
+dev.off()
+```
+
+
+# Extract BatchID and SequenceID from GMD_id
+```{r BatchID and SequenceID}
+BatchID <- func_get_batch_ids(gmd_meta_final)
+SequenceID <- func_get_sequence_ids(gmd_meta_final)
+```
+
+
+# Relevel factors: treatment, cultivar, sample_time and create factors table
+
+* only for experiments with four cultivars: ``func_relevel_factors`` and  ``func_create_tolerance_factor``
+
+```{r relevel factors and factors table}
+# relevel factors (treatment, cultivar, sample_time)
+gmd_meta_final <- func_relevel_factors(trial_matrix = gmd_meta_final, 
+                                 cultivar_levels = cultivar_names,
+                                 cultivar_levels_sorted = cultivar_names_sorted,
+                                 sample_time_levels = sample_time_names)
+
+# define tolerance factor (if there are four cultivars)
+tolerance <- func_create_tolerance_factor(gmd_meta_final)
+
+# create factors table for treatment, cultivar, sample_time, Dw, Fw, Is, AvgAnnotated, AvgAnnotatedLog10, BatchID, SequenceID
+factors <- func_create_factors_table(gmd_meta_final, SequenceID, BatchID, tolerance)
+
+# cultivars are ordered by tolerance!
+levels(factors$cultivar)
+
+# change alias name (same format as in sp_infos)
+factors$alias <- factors$cultivar
+factors$alias <- gsub("_", "", factors$alias)
+factors$alias <- gsub("x", "", factors$alias)
+```
+
+
+## Table with information about subpopulations
+```{r table with information about subpopulations}
+sp_infos <- read.table("../trost_phenotypes/data/valdis_subpopulations.txt", header = T, sep = "\t")
+sp_infos_dup <- read.table("../trost_phenotypes/data/valdis_subpopulations_duplicates.txt", header = T, sep = "\t")
+
+# merge with factors table
+factors_dup <- merge(factors, sp_infos_dup, by = "alias", all.x = T, sort = FALSE)
+factors <- merge(factors, sp_infos, by = "alias", all.x = T, sort = FALSE)
+
+# table with information about blocks in greenhouse
+block_infos <- read.table("data/mpi_fgh_2015_blocks.txt", header = T, sep = "\t")
+# merge with factors table
+factors <- merge(factors, block_infos, by.x = "sample_id", by.y = "sampleID", all.x = T, sort = FALSE)
+
+factors <- factors[order(factors$chromatogram),]
+factors <- droplevels(factors)
+factors_dup <- factors_dup[order(factors_dup$chromatogram),]
+
+
+factors_dup$crossing <- as.character(factors_dup$population)
+factors_dup$crossing[which(factors_dup$alias == "Albatros")] <- "Albatros"
+factors_dup$crossing[which(factors_dup$alias == "Euroresa")] <- "Euroresa"
+factors_dup$crossing[which(factors_dup$alias == "Ramses")] <- "Ramses"
+factors_dup$crossing[which(factors_dup$crossing == "EA")] <- "ExA"
+factors_dup$crossing[which(factors_dup$crossing == "AR")] <- "AxR"
+factors_dup$crossing <- as.factor(factors_dup$crossing)
+levels(factors_dup$crossing)
+
+# save factors table
+write.table(factors, 
+            paste("output/", experiment_string, "/factors.txt", sep=""), 
+            sep="\t")
+```
+
+
+# Normalize Values: Remove Factors by ANOVA models using R script by Jan Lisec
+## IIIc: SequenceID + BatchID + LOG10(AvgAnnotated)
+
+* default factors: ``facs = c("cultivar", "treatment", "sample_time", "SequenceID", "BatchID", "log10_AvgAnnotated")``
+* default factors to keep: ``keep = c("cultivar", "treatment", "sample_time")``
+* therefore, factors to remove: SequenceID + BatchID + LOG10(AvgAnnotated)
+
+```{r normalize values IIIc, warning=FALSE}
+# Set factors used for normalization
+all_factors_variable = c("cultivar", "treatment", "SequenceID", "BatchID", "log10_AvgAnnotated")
+keep_factors_variable = c("cultivar", "treatment")
+
+# matrix WITH NAs, after log10
+values_norm_log10 <- func_normalize(gmd_values_select_log10, 
+                                    trial_factors = factors,
+                                    facs = all_factors_variable,
+                                    keep = keep_factors_variable)
+write.table(values_norm_log10, 
+            paste("output/", experiment_string, "/values_norm_log10.txt", sep=""), 
+            sep="\t")
+
+# matrix WITHOUT NAs, after log10
+values_norm_log10_woNA <- func_normalize(gmd_values_select_log10_woNA,
+                                         trial_factors = factors,
+                                         facs = all_factors_variable,
+                                         keep = keep_factors_variable)
+write.table(values_norm_log10_woNA, 
+            paste("output/", experiment_string, "/values_norm_log10_woNA.txt", sep=""), 
+            sep="\t")
+```
+
+
+# Outlier Detection and Replacement
+
+* plot histogram of analytes containing possible outliers
+* outlier threshold is given in specific R-script (e.g. 1e-5)
+* ``func_replace_outlier`` calls ``func_find_one_outlier`` using Grubbs test
+* outlier is replaced by NA
+
+```{r outlier detection and replacement}
+outlier_threshold = 1e-7
+
+pdf( paste("figures/", experiment_string, "/outlier_hist.pdf", sep="") )
+func_hist_outlier(values_norm_log10, threshold = outlier_threshold)
+dev.off()
+
+# replace outlier by NA
+# use already normalized matrix --> values_norm_log10
+values_norm_log10_woOutlier <- func_replace_outlier(values_norm_log10, 
+                                                    threshold = outlier_threshold, 
+                                                    original_values = gmd_values_select_log10, 
+                                                    output = "normalized")
+
+# use original matrix before normalization --> gmd_values_select_log10
+gmd_values_select_log10_woOutlier <- func_replace_outlier(values_norm_log10, 
+                                                          threshold = outlier_threshold, 
+                                                          original_values = gmd_values_select_log10, 
+                                                          output = "original")
+# before
+sum(is.na(values_norm_log10))
+# after
+sum(is.na(values_norm_log10_woOutlier)) 
+sum(is.na(gmd_values_select_log10_woOutlier)) 
+
+write.table(values_norm_log10_woOutlier, file_values_norm_log10_woOutlier, sep = "\t")
+write.table(gmd_values_select_log10_woOutlier, file_gmd_values_select_log10_woOutlier, sep = "\t")
+```
+
+
+# Coefficient of Variation --> calculate, print, plot
+```{r calculate CV}
+cv_value_threshold = 0.5
+
+# calculate cv values
+# INPUT: already normalized values (containing NAs)!
+cv_values <- func_calculate_cv(values_norm_log10_woOutlier, factors, 
+                               all_factors = all_factors_variable,
+                               keep_factors = keep_factors_variable,
+                               IA_factors = IA_factors_variable)
+
+# print replicate groups with CV > threshold (e.g. 0.25)
+func_print_cv(cv_values, cv_value_threshold)
+
+# plot histogram of cv values per analyte
+pdf( paste("figures/", experiment_string, "/cv_values_hist.pdf", sep="") )
+func_plot_cv(cv_values)
+dev.off()
+```
+
+
+# Check normal distribution --> shapiro test and histogram
+```{r check normal distribution}
+shapiro_threshold = 1e-7
+
+# plot histograms of normalized values per analyte
+pdf( paste("figures/", experiment_string, "/values_norm_log10_hist.pdf", sep="") )
+func_plot_dist(values_norm_log10_woOutlier)
+dev.off()
+
+# shapiro test for normal distribution per analyte
+res_shapiro <- func_shapiro_test(values_norm_log10_woOutlier, shapiro_threshold)
+```
+
+
+# Aggregate normalized log10 values
+```{r aggregate normalized log10 values}
+# for matrix with NAs
+# values_norm_log10_mean <- func_agg_3fac(values_norm_log10_woOutlier, factors, 
+#                                         "treatment", "sample_time", "cultivar", 
+#                                         mean, analytes_sel_exp_sort)
+# values_norm_log10_median <- func_agg_3fac(values_norm_log10_woOutlier, factors, 
+#                                           "treatment", "sample_time", "cultivar", 
+#                                           median, analytes_sel_exp_sort)
+# dim(values_norm_log10_median)
+# 
+# 
+# # for matrix without NAs
+# values_norm_log10_woNA_mean <- func_agg_3fac(values_norm_log10_woNA, factors, 
+#                                              "treatment", "sample_time", "cultivar", 
+#                                              mean, analytes_sel_exp_sort)
+# values_norm_log10_woNA_median <- func_agg_3fac(values_norm_log10_woNA, factors, 
+#                                                "treatment", "sample_time", "cultivar", 
+#                                                median, analytes_sel_exp_sort)
+# 
+# write.table(values_norm_log10_mean, paste("output/", experiment_string, "/values_norm_log10_mean.txt", sep=""), sep="\t")
+# write.table(values_norm_log10_median, paste("output/", experiment_string, "/values_norm_log10_median.txt", sep=""), sep="\t")
+# write.table(values_norm_log10_woNA_mean, paste("output/", experiment_string, "/values_norm_log10_woNA_mean.txt", sep=""), sep="\t")
+# write.table(values_norm_log10_woNA_median, paste("output/", experiment_string, "/values_norm_log10_woNA_median.txt", sep=""), sep="\t")
+```
+
+
+```{r merge values_norm_log10_woOutlier with sp_infos}
+values_norm_log10_woOutlier_sp <- merge(values_norm_log10_woOutlier, 
+                                        factors_dup,
+                                        by.x = "row.names", by.y = "chromatogram")
+
+dim(values_norm_log10_woOutlier)
+dim(values_norm_log10_woOutlier_sp)
+
+# remove added columns 
+chrom_dup <- values_norm_log10_woOutlier_sp[,1]
+values_norm_log10_woOutlier_sp <- values_norm_log10_woOutlier_sp[, 2:100]
+```
+
+
+# Compare influence of different scaling methods for one dataset on PCA results
+```{r compare scaling methods}
+pca_norm_log10_pareto_rnipals <- func_prep_pca(values_norm_log10_woOutlier, scale_method = "pareto", center_option = FALSE, 
+                                             pc_number = 5, pca_method = "rnipals")
+
+pca_norm_log10_uv_rnipals <- func_prep_pca(values_norm_log10_woOutlier, scale_method = "uv", center_option = FALSE, 
+                                             pc_number = 5, pca_method = "rnipals")
+
+pca_norm_log10_vector_rnipals <- func_prep_pca(values_norm_log10_woOutlier, scale_method = "vector", center_option = FALSE, 
+                                             pc_number = 5, pca_method = "rnipals")
+
+pca_norm_log10_none_rnipals <- func_prep_pca(values_norm_log10_woOutlier, scale_method = "none", center_option = FALSE, 
+                                             pc_number = 5, pca_method = "rnipals")
+
+
+# matrix before ANOVA-normalization
+pca_log10_pareto_rnipals <- func_prep_pca(gmd_values_select_log10_woOutlier, scale_method = "pareto", 
+                                        center_option = FALSE, pc_number = 5, pca_method = "rnipals")
+pca_log10_none_rnipals <- func_prep_pca(gmd_values_select_log10_woOutlier, scale_method = "none", 
+                                        center_option = FALSE, pc_number = 5, pca_method = "rnipals")
+palette(heike_palette_5)
+pairs(pca_log10_pareto_rnipals@scores[,1:5], col=factors$BatchID, pch=19)
+pairs(pca_log10_none_rnipals@scores[,1:5], col=factors$BatchID, pch=19)
+palette(heike_palette_2)
+pairs(pca_log10_none_rnipals@scores[,1:5], col=factors$treatment, pch=19)
+
+
+# matrix without NAs
+pca_norm_log10_woNA_pareto_rnipals <- func_prep_pca(values_norm_log10_woNA, scale_method = "pareto", center_option = FALSE, 
+                                             pc_number = 5, pca_method = "rnipals")
+
+# compare PCA of matrix with/without NAs
+cols_cultivar_factor <- cols_lines_63
+palette(cols_cultivar_factor)
+pairs(pca_norm_log10_pareto_rnipals@scores[,1:5], 
+      col=factors$cultivar, pch=19, main="pareto scaling")
+pairs(pca_norm_log10_woNA_pareto_rnipals@scores[,1:5], 
+      col=factors$cultivar, pch=19, main="pareto scaling")
+
+
+# matrix with duplicate samples for overlapping SP
+pca_norm_log10_sp_pareto_rnipals <- func_prep_pca(values_norm_log10_woOutlier_sp, 
+                                                  scale_method = "pareto", center_option = FALSE, 
+                                                  pc_number = 5, pca_method = "rnipals")
+
+pca_norm_log10_sp_none_rnipals <- func_prep_pca(values_norm_log10_woOutlier_sp, 
+                                                  scale_method = "none", center_option = FALSE, 
+                                                  pc_number = 5, pca_method = "rnipals")
+
+```
+
+
+## Compare scaling methods: PCA plots
+```{r compare scaling methods: pca plots}
+pdf(paste("figures/", experiment_string, "/PCA_scoresplots_scaling_effect.pdf", sep="") )
+palette(heike_palette_3)
+pairs(pca_norm_log10_pareto_rnipals@scores[,1:5], col=factors$population, pch=19, main="pareto scaling")
+pairs(pca_norm_log10_uv_rnipals@scores[,1:5], col=factors$population, pch=19, main="unit variance scaling")
+pairs(pca_norm_log10_vector_rnipals@scores[,1:5], col=factors$population, pch=19, main="vector scaling")
+pairs(pca_norm_log10_none_rnipals@scores[,1:5], col=factors$population, pch=19, main="no scaling")
+
+palette(cols_treatment)
+pairs(pca_norm_log10_pareto_rnipals@scores[,1:5], col=factors$treatment, pch=19, main="pareto scaling")
+pairs(pca_norm_log10_uv_rnipals@scores[,1:5], col=factors$treatment, pch=19, main="unit variance scaling")
+pairs(pca_norm_log10_vector_rnipals@scores[,1:5], col=factors$treatment, pch=19, main="vector scaling")
+pairs(pca_norm_log10_none_rnipals@scores[,1:5], col=factors$treatment, pch=19, main="no scaling")
+
+# Subpopulation
+palette(heike_palette_6)
+pairs(pca_norm_log10_pareto_rnipals@scores[,1:5], col=factors$SP, pch=19, main="pareto scaling")
+pairs(pca_norm_log10_uv_rnipals@scores[,1:5], col=factors$SP, pch=19, main="unit variance scaling")
+pairs(pca_norm_log10_vector_rnipals@scores[,1:5], col=factors$SP, pch=19, main="vector scaling")
+pairs(pca_norm_log10_none_rnipals@scores[,1:5], col=factors$SP, pch=19, main="no scaling")
+dev.off()
+
+palette(heike_palette_5)
+pairs(pca_norm_log10_none_rnipals@scores[,1:5], col=factors$BatchID, pch=19, main="no scaling")
+
+palette(heike_palette_4)
+pairs(pca_norm_log10_none_rnipals@scores[,1:5], col=factors$Block, pch=19, main="no scaling")
+```
+
+
+## PCA - use matrix with duplicate samples for overlapping SP
+```{r PCA - use matrix with duplicate samples for overlapping SP}
+
+# treatment
+palette(cols_treatment_report)
+pdf(paste("figures/", experiment_string, "/PCA_scoresplots_treatment.pdf", sep="") )
+
+pairs(pca_norm_log10_sp_pareto_rnipals@scores[,1:5], col=factors_dup$treatment, pch=19, main="Treatment effect, pareto scaling")
+pairs(pca_norm_log10_sp_none_rnipals@scores[,1:5], col=factors_dup$treatment, pch=19, main="Treatment effect, no scaling")
+
+plot(pca_norm_log10_sp_pareto_rnipals@scores[,1], pca_norm_log10_sp_pareto_rnipals@scores[,2], 
+     col=factors_dup$treatment, pch=19, xlab = "PC1 (35%)", ylab = "PC2 (8%)")
+legend("topleft", legend = c("Kontrolle", "Trockenstress"), fill=cols_treatment_report)
+dev.off()
+
+############################################
+
+# Subpopulation
+palette(cols_sp)
+pdf(paste("figures/", experiment_string, "/PCA_scoresplots_SP.pdf", sep="") )
+
+pairs(pca_norm_log10_sp_pareto_rnipals@scores[,1:5], col=factors_dup$SP, pch=19, main="Subpopulation effect, pareto scaling")
+pairs(pca_norm_log10_sp_none_rnipals@scores[,1:5], col=factors_dup$SP, pch=19, main="Subpopulation effect, no scaling")
+
+# PC1 vs. PC2
+plot(pca_norm_log10_sp_pareto_rnipals@scores[,1], pca_norm_log10_sp_pareto_rnipals@scores[,2], 
+     col=factors_dup$SP, pch=c(19,17)[factors_dup$treatment], xlab = "PC1 (35%)", ylab = "PC2 (8%)")
+legend("topleft", legend = c("Eltern", "SP1", "SP2", "SP3"), fill=cols_sp)
+
+# PC1 vs. PC5
+plot(pca_norm_log10_sp_pareto_rnipals@scores[,1], pca_norm_log10_sp_pareto_rnipals@scores[,5], 
+     col=factors_dup$SP, pch=c(19,17)[factors_dup$treatment], xlab = "PC1 (35%)", ylab = "PC5 (3.6%)")
+legend("topleft", legend = c("Eltern", "SP1", "SP2", "SP3"), fill=cols_sp)
+
+# PC4 vs. PC5
+plot(pca_norm_log10_sp_pareto_rnipals@scores[,4], pca_norm_log10_sp_pareto_rnipals@scores[,5], 
+     col=factors_dup$SP, pch=c(19,17)[factors_dup$treatment], xlab = "PC4 (4.6%)", ylab = "PC5 (3.6%)")
+legend("topleft", legend = c("Eltern", "SP1", "SP2", "SP3"), fill=cols_sp)
+
+dev.off()
+
+############################################
+
+# Crossing
+palette(cols_genotype_report)
+pdf(paste("figures/", experiment_string, "/PCA_scoresplots_crossing.pdf", sep="") )
+
+pairs(pca_norm_log10_sp_pareto_rnipals@scores[,1:5], col=factors_dup$crossing, pch=19, main="Crossing effect, pareto scaling")
+pairs(pca_norm_log10_sp_none_rnipals@scores[,1:5], col=factors_dup$crossing, pch=19, main="Crossing effect, no scaling")
+
+# PC4 vs. PC5
+plot(pca_norm_log10_sp_pareto_rnipals@scores[,4], pca_norm_log10_sp_pareto_rnipals@scores[,5],
+    col=factors_dup$crossing, pch=c(19,17)[factors_dup$treatment], xlab = "PC4 (4.6%)", ylab = "PC5 (3.6%)")
+legend("topleft", legend = c("Albatros", "AxR", "Euroresa", "ExA", "Ramses"), fill=cols_genotype_report)
+
+dev.off()
+```
+
+
+# Compare influence of different PCA methods for one dataset on PCA results
+```{r compare pca methods}
+pca_norm_log10_none_rnipals <- func_prep_pca(values_norm_log10_woOutlier, 
+                                             scale_method = "none", center_option = FALSE, 
+                                             pc_number = 5, pca_method = "rnipals")
+
+pca_norm_log10_none_bpca <- func_prep_pca(values_norm_log10_woOutlier, 
+                                          scale_method = "none", center_option = FALSE, 
+                                          pc_number = 5, pca_method = "bpca")
+
+pca_norm_log10_none_ppca <- func_prep_pca(values_norm_log10_woOutlier, 
+                                          scale_method = "none", center_option = FALSE, 
+                                          pc_number = 5, pca_method = "ppca")
+
+pca_norm_log10_none_svdimpute <- func_prep_pca(values_norm_log10_woOutlier, 
+                                               scale_method = "none", center_option = FALSE, 
+                                               pc_number = 5, pca_method = "svdImpute")
+```
+
+
+## Compare PCA methods: PCA plots
+```{r compare pca methods: pca plots}
+pdf(paste("figures/", experiment_string, "/PCA_scoresplots_pca_methods_effect.pdf", sep="") )
+palette(cols_cultivar_factor)
+pairs(pca_norm_log10_none_rnipals@scores[,1:5], col=factors$cultivar, pch=19, main="rnipals")
+pairs(pca_norm_log10_none_bpca@scores[,1:5], col=factors$cultivar, pch=19, main="bpca")
+pairs(pca_norm_log10_none_ppca@scores[,1:5], col=factors$cultivar, pch=19, main="ppca")
+pairs(pca_norm_log10_none_svdimpute@scores[,1:5], col=factors$cultivar, pch=19, main="svdImpute")
+
+palette(cols_treatment)
+pairs(pca_norm_log10_none_rnipals@scores[,1:5], col=factors$treatment, pch=19, main="rnipals")
+pairs(pca_norm_log10_none_bpca@scores[,1:5], col=factors$treatment, pch=19, main="bpca")
+pairs(pca_norm_log10_none_ppca@scores[,1:5], col=factors$treatment, pch=19, main="ppca")
+pairs(pca_norm_log10_none_svdimpute@scores[,1:5], col=factors$treatment, pch=19, main="svdImpute")
+
+palette(cols_sample_time_factor)
+pairs(pca_norm_log10_none_rnipals@scores[,1:5], col=factors$sample_time, pch=19, main="rnipals")
+pairs(pca_norm_log10_none_bpca@scores[,1:5], col=factors$sample_time, pch=19, main="bpca")
+pairs(pca_norm_log10_none_ppca@scores[,1:5], col=factors$sample_time, pch=19, main="ppca")
+pairs(pca_norm_log10_none_svdimpute@scores[,1:5], col=factors$sample_time, pch=19, main="svdImpute")
+dev.off()
+```
+
+
+# Scatterplots for log-transformed values --> compare with/without NA replacement by minimum
+```{r scatterplots pareto scaling + rnipals PCA}
+# ANOVA Normalisierung mit log10-Werten 
+pdf(paste("figures/", experiment_string, "/PCA_scoresplots_NA_effect.pdf", sep=""), width=12, height=6)
+
+palette(cols_cultivar_factor)
+par(mfrow=c(1,2))
+plot(pca_norm_log10_pareto_rnipals@scores[,1], pca_norm_log10_pareto_rnipals@scores[,3], 
+     cex=1.5, main="ANOVA normalization(IIIc), log10 values",
+     col=factors$cultivar, 
+     pch=c(16,17)[as.numeric(factors$treatment)], 
+     xlab="PC1", ylab="PC3")
+
+
+plot(pca_norm_log10_woNA_pareto_rnipals@scores[,1], pca_norm_log10_woNA_pareto_rnipals@scores[,3], 
+     cex=1.5, main="ANOVA normalization(IIIc), log10 values wo NA",
+     col=factors$cultivar, 
+     pch=c(16,17)[as.numeric(factors$treatment)], 
+     xlab="PC1", ylab="PC3")
+
+legend("topright", levels(factors$cultivar), fill=cols_cultivar_factor, cex=0.8)
+legend("bottomright", levels(factors$treatment), pch=factors$treatment, cex=0.8)
+
+# colour: sample time
+palette(cols_sample_time_factor)
+par(mfrow=c(1,2))
+plot(pca_norm_log10_pareto_rnipals@scores[,1], pca_norm_log10_pareto_rnipals@scores[,2], 
+     cex=1.5, main="ANOVA normalization(IIIc), log10 values",
+     col=factors$sample_time, 
+     pch=c(16,17)[as.numeric(factors$treatment)], 
+     xlab="PC1", ylab="PC2")
+
+
+plot(pca_norm_log10_woNA_pareto_rnipals@scores[,1], pca_norm_log10_woNA_pareto_rnipals@scores[,2], 
+     cex=1.5, main="ANOVA normalization(IIIc), log10 values wo NA",
+     col=factors$sample_time, 
+     pch=c(16,17)[as.numeric(factors$treatment)], 
+     xlab="PC1", ylab="PC2")
+
+legend("topright", levels(factors$sample_time), fill=cols_sample_time_factor, cex=0.8)
+legend("bottomright", levels(factors$treatment), pch=factors$treatment, cex=0.8)
+
+dev.off()
+
+par(mfrow=c(1,1))
+```
+
+
+# ANOVA with 2 or 3 factors (without interaction): treatment, cultivar, sample_time
+```{r ANOVA with 2 or 3 factors (without interaction)}
+
+# if sample_time has only one level, than do ANOVA only for treatment and cultivar
+# else (sample_time has more levels), do ANOVA for 3 factors: treatment, cultivar, sample_time
+
+res_anova_adj <- func_anova_2fac(values_norm_log10_woOutlier_sp, factors_dup, 
+                                 "treatment", "cultivar", 0.01, analytes_sel_exp_sort_mpi_fgh_2015$Name)
+
+res_anova_adj_crossing <- func_anova_2fac(values_norm_log10_woOutlier_sp, factors_dup, 
+                                 "treatment", "crossing", 0.01, analytes_sel_exp_sort_mpi_fgh_2015$Name)
+
+res_anova_adj_sp <- func_anova_2fac(values_norm_log10_woOutlier_sp, factors_dup, 
+                                 "treatment", "SP", 0.01, analytes_sel_exp_sort_mpi_fgh_2015$Name)
+
+write.table(res_anova_adj, paste("output/", experiment_string, "/res_anova_adj.txt", sep=""), sep="\t")
+```
+
+
+# Boxplots of normalized values per analyte using 1 factor
+```{r boxplots of normalized values per analyte using 1 factor}
+# treatment
+pdf(paste("figures/", experiment_string, "/boxplot_treatment.pdf", sep="") )
+func_boxplot_1fac(values_norm_log10_woOutlier_sp, factors_dup, "treatment", res_anova_adj, 
+                  cols_treatment, analytes_sel_exp_sort_mpi_fgh_2015$Name)
+dev.off()
+
+# lines
+pdf(paste("figures/", experiment_string, "/boxplot_cultivar.pdf", sep=""), width = 10, height = 4)
+func_boxplot_1fac(values_norm_log10_woOutlier_sp, factors_dup, "cultivar", res_anova_adj, 
+                  cols_lines_63, analytes_sel_exp_sort_mpi_fgh_2015$Name)
+dev.off()
+
+
+# crossing
+pdf(paste("figures/", experiment_string, "/boxplot_crossing.pdf", sep=""), width = 5, height = 5)
+func_boxplot_1fac(values_norm_log10_woOutlier_sp, factors_dup, "crossing", res_anova_adj_crossing, 
+                  cols_genotype_report, analytes_sel_exp_sort_mpi_fgh_2015$Name)
+dev.off()
+
+# subpopulation
+pdf(paste("figures/", experiment_string, "/boxplot_sp.pdf", sep=""), width = 10 )
+func_boxplot_1fac(values_norm_log10_woOutlier_sp, factors_dup, "SP", res_anova_adj_sp, 
+                  cols_sp, analytes_sel_exp_sort_mpi_fgh_2015$Name)
+dev.off()
+```
+
+
+# ANOVA for 2 factors: treatment and sample time + interaction
+```{r ANOVA with 2 factors (with interaction)}
+if(length(levels(factors$sample_time)) > 1){
+  res_anova2_adj <- func_anova_2fac_ia(values_norm_log10_woOutlier, factors, "treatment", "sample_time", 0.01, analytes_sel_exp_sort$Name)
+  
+  write.table(res_anova2_adj, paste("output/", experiment_string, "/res_anova2_adj.txt", sep=""), sep="\t")
+}
+```
+
+
+# Boxplots of normalized values per analyte using 2 factors
+```{r boxplots of normalized values per analyte using 2 factors}
+
+if(length(levels(factors$sample_time)) > 1){
+  
+pdf(paste("figures/", experiment_string, "/boxplot_treatment_sample_time.pdf", sep="") )
+par(mar=c(7, 4.1, 7, 2.1))
+func_boxplot_2fac(normalized_values = values_norm_log10_woOutlier, 
+                  trial_factors = factors, 
+                  factor1 = "treatment", 
+                  factor2 = "sample_time", 
+                  res_anova_adj = res_anova2_adj, 
+                  cols = cols_treatment_sample_time,
+                  names_factors = names_func_boxplot_2fac,
+                  analyte_names = analytes_sel_exp_sort$Name)
+dev.off()
+
+}
+```
+
+
+# Only late/before samples
+**Analysis for late/before sample subset is only executed for some samples: depends on variable `do_agg_late_before_samples`**
+```{r only late/before samples}
+
+if(do_agg_late_before_samples == 1) {
+  values_norm_log10_late_before <- subset(values_norm_log10_woOutlier, factors$sample_time=="late/before")
+  dim(values_norm_log10_late_before)
+      
+  factors_late_before <- subset(factors, factors$sample_time=="late/before")
+  factors_late_before$sample_time <- droplevels(factors_late_before$sample_time)
+  
+  write.table(values_norm_log10_late_before, 
+              paste("output/", experiment_string, "/values_norm_log10_late_before.txt", sep=""), 
+              sep="\t")
+  write.table(factors_late_before,
+              paste("output/", experiment_string, "/factors_late_before.txt", sep=""), 
+              sep="\t")
+  
+  # un-normalized values
+  
+  gmd_values_select_log10_late_before <- subset(gmd_values_select_log10, factors$sample_time=="late/before")
+  write.table(gmd_values_select_log10_late_before, 
+              paste("output/", experiment_string, "/gmd_values_select_log10_late_before.txt", sep=""), 
+              sep="\t")
+
+  } else { 
+  print("subset only late/before samples NOT executed") 
+  }
+```
+
+
+# Aggregate only late/before samples
+**Analysis for late/before sample subset is only executed for some samples: depends on variable `do_agg_late_before_samples`**
+```{r aggregate only late/before samples}
+
+if(do_agg_late_before_samples == 1)
+  {
+  values_norm_log10_late_before_mean <- func_agg_2fac(values_norm_log10_late_before, 
+                                                      factors_late_before, 
+                                                      "cultivar", "treatment", 
+                                                      mean, analytes_sel_exp_sort)
+  
+  values_norm_log10_late_before_mean <- cbind(sample_names_variable, 
+                                              values_norm_log10_late_before_mean[,-c(1,2)])
+  dim(values_norm_log10_late_before_mean)
+  write.table(values_norm_log10_late_before_mean, 
+              paste("output/", experiment_string, "/values_norm_log10_late_before_mean.txt", sep=""), 
+              sep="\t")
+  
+} else { print("aggregate only late/before samples NOT executed") }
+```
+
+
+# Save workspace
+```{r save workspace}
+save.image(paste("gmd_data_analysis_", experiment_string, "_", Sys.Date(), ".RData", sep="") )
+```
+
+
+# SessionInfo
+```{r sessionInfo}
+ sessionInfo()
+```

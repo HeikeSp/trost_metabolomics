@@ -1,0 +1,280 @@
+---
+title: "WGCNA: Weighted Correlation Network Analysis with metabolite data"
+author: "Heike Sprenger"
+date: "November 21, 2015"
+output:
+  html_document:
+    highlight: tango
+    number_section: yes
+    theme: cerulean
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+# Set working directory
+```{r set working directory}
+getwd()
+#setwd("~/work/repos/trost_metabolomics")
+```
+
+[solution for issue with working directory and knitr](https://github.com/yihui/knitr/issues/277)
+
+# Load workspace, packages and scripts
+```{r load workspace, message=FALSE}
+#load("WGCNA_field_experiments_late.RData")
+
+# load packages
+library(pander)
+library(knitr)
+library(WGCNA)
+
+# set options for pander
+panderOptions('table.split.table', 200)
+
+# set options for knitr
+opts_chunk$set(fig.width=5, fig.height=5, cache=FALSE, highlight = TRUE, fig.show="asis")
+opts_knit$set(root.dir = '../')
+```
+
+# Load samplelist and analytes table
+**these data come from ``merge_field_experiments_late.Rmd``**
+```{r load samplist and analytes table}
+factors <- read.table("output/merge_field_experiments_late/factors.txt", sep="\t", header=T)
+head(factors)
+
+analytes <- read.table("data/analytes_table_7exp_overlap_select_ordered.txt", 
+                                    sep = "\t", header = T, allowEscapes = T)
+```
+
+# Load values 
+**these data come from ``merge_field_experiments_late.Rmd``**
+```{r load values}
+values_norm <- read.table("output/merge_field_experiments_late/values_norm.txt",
+                          header = T, sep = "\t", check.names = F)
+dim(values_norm)
+colnames(values_norm) <- analytes$Name
+```
+
+
+## Autoscaling of values (= uv scaling)
+**Autoscaling** means that each column of the data matrix X is subtracted by its mean and divided by its standard deviation. 
+This procedure is sometimes called standardization or **z-scoring**. 
+Additionally, autoscaling assures that variables with smaller variance have the same a priori chance to be selected, without further adjustments of the objective function. (from Saccenti et al. 2011)
+```{r autoscaling of values}
+values_norm_scale <- scale(values_norm)
+
+# histograms
+par(mar = c(4,4,4,4))
+hist(values_norm[,2], col = "grey")
+hist(values_norm_scale[,2], col = "grey")
+```
+
+
+# WGCNA steps
+## Options for WGCNA
+
+**Important note:** The code below uses parallel computation where multiple cores are available. This works well when R is run from a terminal or from the Graphical User Interface (GUI) shipped with R itself, but at present it does not work with RStudio and possibly other third-party R environments. If you use RStudio or other third-party R environments, skip the ``enableWGCNAThreads()`` call below.
+
+```{r options for WGCNA}
+# The following setting is important, do not omit.
+options(stringsAsFactors = FALSE)
+#enableWGCNAThreads()
+```
+
+
+## Transpose the expression data for further analysis
+```{r transpose the expression data for further analysis}
+# use non-scaled data
+#datExpr0 <- as.data.frame(values_norm)
+
+# use autoscaled data
+datExpr0 <- as.data.frame(values_norm_scale)
+
+rownames(datExpr0) <- factors$sample_id
+```
+
+
+## Checking data for excessive missing values and identification of outlier samples
+We first check for genes and samples with too many missing values:
+```{r check}
+gsg = goodSamplesGenes(datExpr0, verbose = 3);
+gsg$allOK
+```
+
+If the last statement returns TRUE, all genes have passed the cuts. If not, we remove the offending genes and samples from the data:
+```{r remove offending analytes}
+if (!gsg$allOK)
+  {
+  # Optionally, print the gene and sample names that were removed:
+  if (sum(!gsg$goodGenes)>0)
+    printFlush(paste("Removing genes:", paste(names(datExpr0)[!gsg$goodGenes], collapse = ", ")));
+  if (sum(!gsg$goodSamples)>0)
+    printFlush(paste("Removing samples:", paste(rownames(datExpr0)[!gsg$goodSamples], collapse = ", ")));
+  # Remove the offending genes and samples from the data:
+  datExpr0 = datExpr0[gsg$goodSamples, gsg$goodGenes]
+}
+
+# select good analytes
+analytes0 <- analytes[gsg$goodGenes,]
+```
+
+
+## Cluster samples
+Next we cluster the samples (in contrast to clustering genes that will come later) to see if there are any obvious outliers.
+```{r cluster samples}
+sampleTree <- hclust(dist(datExpr0), method = "average");
+# Plot the sample tree: Open a graphic output window of size 12 by 9 inches
+# The user should change the dimensions if the window is too large or too small.
+#sizeGrWindow(12,9)
+#pdf(file = "Plots/sampleClustering.pdf", width = 12, height = 9);
+
+par(cex = 0.6);
+par(mar = c(0,4,2,0))
+plot(sampleTree, main = "Sample clustering to detect outliers", 
+     sub="", xlab="", cex.lab = 1.5, 
+     cex.axis = 1.5, cex.main = 2)
+```
+
+It appears there is one outlier (sample 864938). One can remove it by hand, or use an automatic approach. Choose a height cut that will remove the offending sample, say 4.5/22 (the red line in the plot), and use a branch cut at that height.
+```{r remove offending samples}
+# Plot a line to show the cut
+abline(h = 22, col = "red");
+# Determine cluster under the line
+clust = cutreeStatic(sampleTree, cutHeight = 22, minSize = 10)
+table(clust)
+# clust 1 contains the samples we want to keep.
+keepSamples = (clust==1)
+datExpr = datExpr0[keepSamples, ]
+nGenes = ncol(datExpr) # here: analytes!
+nSamples = nrow(datExpr)
+```
+
+The variable ``datExpr`` now contains the expression data ready for network analysis.
+
+# Step-by-step construction of the gene network and identification of modules
+## Step-by-step network construction and module detection
+### Choosing the soft-thresholding power: analysis of network topology
+```{r Choosing the soft-thresholding power: analysis of network topology}
+powers = c(c(1:10), seq(from = 12, to=20, by=2))
+# Call the network topology analysis function
+sft = pickSoftThreshold(datExpr, powerVector = powers, verbose = 5, blockSize = 3000)
+# Plot the results:
+#sizeGrWindow(9, 5)
+par(mfrow = c(1,2));
+cex1 = 0.9;
+# Scale-free topology fit index as a function of the soft-thresholding power
+plot(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+     xlab="Soft Threshold (power)",ylab="Scale Free Topology Model Fit,signed R^2",type="n",
+     main = paste("Scale independence"));
+text(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+     labels=powers,cex=cex1,col="red");
+# this line corresponds to using an R^2 cut-off of h
+abline(h=0.90,col="red")
+# Mean connectivity as a function of the soft-thresholding power
+plot(sft$fitIndices[,1], sft$fitIndices[,5],
+     xlab="Soft Threshold (power)",ylab="Mean Connectivity", type="n",
+     main = paste("Mean connectivity"))
+text(sft$fitIndices[,1], sft$fitIndices[,5], labels=powers, cex=cex1,col="red")
+```
+
+The result is shown in Figure. We choose the power **6**, which is the lowest power for which the scale-free topology fit index curve flattens out upon reaching a high value (in this case, roughly 0.8).
+
+### One-step network construction and module detection
+Constructing the gene network and identifying modules is now a simple function call:
+```{r One-step network construction and module detection}
+net = blockwiseModules(datExpr, power = 6, 
+                       TOMType = "unsigned", minModuleSize = 5,
+                       reassignThreshold = 0, mergeCutHeight = 0.25,
+                       numericLabels = TRUE, pamRespectsDendro = FALSE,
+                       saveTOMs = TRUE,
+                       saveTOMFileBase = "MetaboliteWGCNA", 
+                       verbose = 3)
+
+# We now return to the network analysis. To see how many modules were identified and what the module sizes are, one can use table(net$colors). 
+# Its output is:
+table(net$colors)
+```
+
+and indicates that there are 4 modules, labeled 1 through 4 in order of descending size, with sizes ranging from 24 to 12 metabolites. The label 0 is reserved for metabolites outside of all modules.
+
+#### Hierarchical clustering dendrogram (tree)
+The hierarchical clustering dendrogram (tree) used for the module identification is returned in ``net$dendrograms[[1]]``
+The dendrogram can be displayed together with the color assignment using the following code:
+```{r hierarchical clustering dendrogram (tree)}
+# open a graphics window
+#sizeGrWindow(12, 9)
+# Convert labels to colors for plotting
+mergedColors = labels2colors(net$colors)
+# Plot the dendrogram and the module colors underneath
+plotDendroAndColors(net$dendrograms[[1]], 
+                    mergedColors[net$blockGenes[[1]]],
+                    "Module colors",
+                    dendroLabels = colnames(datExpr), 
+                    hang = 0.03,
+                    addGuide = TRUE, guideHang = 0.05)
+
+plotDendroAndColors(net$dendrograms[[1]], 
+                    mergedColors[net$blockGenes[[1]]],
+                    "Module colors",
+                    dendroLabels = FALSE, 
+                    hang = 0.03,
+                    addGuide = TRUE, guideHang = 0.05)
+
+# The resulting plot is shown in Fig. 2. We note that if the user would like to change some of the tree cut, module membership, and module merging criteria, the package provides the function recutBlockwiseTrees that can apply modified criteria without having to recompute the network and the clustering dendrogram. This may save a substantial amount of time.
+
+# We now save the module assignment and module eigengene information necessary for subsequent analysis.
+moduleLabels = net$colors
+moduleColors = labels2colors(net$colors)
+MEs = net$MEs
+geneTree = net$dendrograms[[1]]
+```
+
+
+# Visualization of networks within R
+## Visualizing the gene network
+One way to visualize a weighted network is to plot its heatmap, Fig. 1. Each row and column of the heatmap correspond to a single gene. The heatmap can depict adjacencies or topological overlaps, with light colors denoting low adjacency (overlap) and darker colors higher adjacency (overlap). In addition, the gene dendrograms and module colors are plotted along the top and left side of the heatmap. The package provides a convenient function to create such network plots; Fig. 1 was created using the following code. This code can be executed only if the network was calculated using a single-block approach (that is, using the 1-step automatic or the step-by-step tutorials). If the networks were calculated using the block-wise approach, the user will need to modify this code to perform the visualization in each block separately. The modification is simple and we leave it as an exercise for the interested reader.
+
+```{r visualizing the gene network}
+# Calculate topological overlap anew: this could be done more efficiently by saving the TOM
+# calculated during module detection, but let us do it again here.
+dissTOM = 1-TOMsimilarityFromExpr(datExpr, power = 6);
+
+# Transform dissTOM with a power to make moderately strong connections more visible in the heatmap
+plotTOM = dissTOM^7;
+
+# Set diagonal to NA for a nicer plot
+diag(plotTOM) = NA;
+
+# Call the plot function
+sizeGrWindow(9,9)
+TOMplot(dissim = plotTOM, 
+        dendro = geneTree, 
+        Colors = moduleColors, 
+        terrainColors = F,
+        main = "Network heatmap plot, all metabolites")
+```
+
+## Visualizing the network of eigengenes
+It is often interesting to study the relationships among the found modules. One can use the eigengenes as representative profiles and quantify module similarity by eigengene correlation. The package contains a convenient function ``plotEigengeneNetworks`` that generates a summary plot of the eigengene network. It is usually informative to add a clinical trait (or multiple traits) to the eigengenes to see how the traits fit into the eigengene network:
+```{r visualizing the network of eigengenes}
+# Recalculate module eigengenes
+MEs = moduleEigengenes(datExpr, moduleColors)$eigengenes
+# Isolate weight from the clinical traits
+weight = as.data.frame(datTraits$weight_g);
+names(weight) = "weight"
+# Add the weight to existing module eigengenes
+MET = orderMEs(cbind(MEs, weight))
+# Plot the relationships among the eigengenes and the trait
+sizeGrWindow(5,7.5);
+par(cex = 0.9)
+plotEigengeneNetworks(MET, "", marDendro = c(0,4,1,2), marHeatmap = c(3,4,1,2), cex.lab = 0.8, xLabelsAngle= 90)
+```
+
+
+
+# Save workspace
+```{r save workspace}
+save.image("WGCNA_field_experiments_late.RData")
+```
+
