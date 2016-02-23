@@ -56,7 +56,7 @@ opts_knit$set(root.dir = '../')
 
 ## Source R functions
 ```{r source R functions, include=FALSE}
-source("../libpurzel/func_get_phenotyper_data.R")
+source("../functions/func_get_phenotyper_data.R")
 ```
 
 
@@ -67,7 +67,7 @@ source("../libpurzel/func_get_phenotyper_data.R")
 #                               database=GMD; 
 #                               trusted_connection=true')
 
-login <- yaml.load_file("../libpurzel/login.yaml")
+login <- yaml.load_file("../functions/login.yaml")
 
 phenotyper <- dbConnect(MySQL(), user=login$user, password=login$passwd, dbname=login$db, host=login$host)  
 ```
@@ -144,12 +144,20 @@ phenotyper_valdis <- read.table("data/phenotyper_valdis.txt", sep="\t", header=T
 dim(phenotyper_valdis)
 # 808 24
 
+phenotyper_valdis_2015 <- read.table("data/phenotyper_valdis_2015.txt", sep="\t", header=T, check.names = F)
+dim(phenotyper_valdis_2015)
+# 254 24
+
 phenotyper_result_joined_valdis <- rbind(phenotyper_result_joined, phenotyper_valdis)
+phenotyper_result_joined_valdis_2015 <- rbind(phenotyper_result_joined, phenotyper_valdis, phenotyper_valdis_2015)
 dim(phenotyper_result_joined_valdis)
 # 4555 24
+dim(phenotyper_result_joined_valdis_2015)
+# 4809 27
 
 write.table(phenotyper_result_joined, "data/phenotyper_result_joined.txt", sep="\t")
 write.table(phenotyper_result_joined_valdis, "data/phenotyper_result_joined_valdis.txt", sep="\t")
+write.table(phenotyper_result_joined_valdis_2015, "data/phenotyper_result_joined_valdis_2015.txt", sep="\t")
 
 # join by aliquot_id
 # phenotyper_result_joined_by_aliquot <- join(meta_query_result_2014_06_24, master_query_result_2014_03_12, by = "aliquot_id" )

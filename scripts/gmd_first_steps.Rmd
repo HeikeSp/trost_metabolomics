@@ -52,7 +52,7 @@ dbhandle <- odbcDriverConnect('driver={SQL Server};
                               database=GMD; 
                               trusted_connection=true')
 
-# login <- yaml.load_file("../libpurzel/login.yaml")
+# login <- yaml.load_file("../functions/login.yaml")
 
 # phenotyper <- dbConnect(MySQL(), user=login$user, password=login$passwd, dbname=login$db, host=login$host)  
 
@@ -65,11 +65,15 @@ dbhandle <- odbcDriverConnect('driver={SQL Server};
 
 
 ## Read table with GMD ids and "real" experiment names
+
+**gmd_trost_experiments.txt** was prepared before any analysis in R!
+
 ```{r read table with GMD ids and "real" experiment names}
 gmd_trost_experiments <- read.table("data/gmd_trost_experiments.txt", sep="\t", header=TRUE)
 # order table by ID
 gmd_trost_experiments <- gmd_trost_experiments[order(gmd_trost_experiments$id),]
 
+dim(gmd_trost_experiments)
 pander(head(gmd_trost_experiments))
 ```
 
@@ -81,6 +85,8 @@ trost_TagList <- sqlQuery(dbhandle, 'select * from tf.TagList where comment=\'tr
 head(trost_TagList)
 # order table
 trost_TagList <- trost_TagList[order(trost_TagList$id),]
+
+dim(trost_TagList)
 ```
 
 
@@ -114,7 +120,7 @@ trost_gmd_ids <- sqlQuery(dbhandle, 'SELECT GC_Chromatogram.name,
 
 colnames(trost_gmd_ids) <- c("GMD_id", "chromatogram")
 dim(trost_gmd_ids)
-# 5723 2
+# 6806 2
 
 pander(head(trost_gmd_ids))
 
@@ -133,10 +139,16 @@ write.table(trost_gmd_ids, "data/trost_gmd_ids.txt", sep="\t")
 ```{r import TROST phenotyper query results}
 phenotyper_result_joined <- read.table("data/phenotyper_result_joined.txt", sep="\t", header=TRUE)
 phenotyper_result_joined_valdis <- read.table("data/phenotyper_result_joined_valdis.txt", sep="\t", header=TRUE)
+phenotyper_result_joined_valdis_2015 <- read.table("data/phenotyper_result_joined_valdis_2015.txt", sep="\t", header=TRUE)
 dim(phenotyper_result_joined_valdis)
 # 4555 24
+dim(phenotyper_result_joined_valdis_2015)
+# 4809 24
 
-phenotyper_result_joined_with_gmd_ids <- join(phenotyper_result_joined_valdis, trost_gmd_ids, by="GMD_id")
+# phenotyper_result_joined_with_gmd_ids <- join(phenotyper_result_joined_valdis, trost_gmd_ids, by="GMD_id")
+phenotyper_result_joined_with_gmd_ids <- join(phenotyper_result_joined_valdis_2015, trost_gmd_ids, by="GMD_id")
+dim(phenotyper_result_joined_with_gmd_ids)
+# 4809 24
 
 # order table by chromatogram id
 phenotyper_result_joined_with_gmd_ids <- phenotyper_result_joined_with_gmd_ids[order(phenotyper_result_joined_with_gmd_ids$chromatogram),]

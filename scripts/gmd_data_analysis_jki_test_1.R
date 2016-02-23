@@ -2,8 +2,8 @@
 setwd("..")
 
 # Source R scripts
-source("../libpurzel/names.R")
-source("../libpurzel/colors.R")
+source("../functions/names.R")
+source("../functions/colors.R")
 
 # Set variables specific for experiment
 # Set experiment string for file names

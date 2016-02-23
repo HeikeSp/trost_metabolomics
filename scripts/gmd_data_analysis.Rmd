@@ -33,10 +33,10 @@ opts_knit$set(root.dir = '../')
 # Load packages and functions for metabolite data analysis
 ```{r load packages and functions for metabolite data analysis, message=FALSE, fig.show='hide'}
 # load packages
-source("../libpurzel/func_load_packages_metabolite_data_analysis.R")
+source("../functions/func_load_packages_metabolite_data_analysis.R")
 
 # load functions
-source("../libpurzel/func_load_functions_metabolite_data_analysis.R")
+source("../functions/func_load_functions_metabolite_data_analysis.R")
 ```
 
 
@@ -63,7 +63,7 @@ phenotyper_result_joined <- read.table("data/phenotyper_result_joined_with_gmd_i
 ```
 
 
-## Load phenotyper results and analytes table
+## Load analytes table
 this table comes from ``gmd_analytes.Rmd``
 ```{r load analytes table}
 analytes_sel_exp_sort <- read.table("data/analytes_table_7exp_overlap_select_ordered.txt", 

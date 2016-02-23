@@ -36,7 +36,7 @@ odbcDriverConnect(connection='driver={SQL Server};server=r710sqljahu;uid=MPIMP-G
 odbcDriverConnect(connection='driver={SQL Server};server=gmd.mpimp-golm.mpg.de;database=r710sqljahu;uid=MPIMP-GOLM\\HSprenger;pwd=Prenzlau;trusted_connection=true')
 
 
-# login <- yaml.load_file("../libpurzel/login.yaml")
+# login <- yaml.load_file("../functions/login.yaml")
 
 # phenotyper <- dbConnect(MySQL(), user=login$user, password=login$passwd, dbname=login$db, host=login$host)  
 

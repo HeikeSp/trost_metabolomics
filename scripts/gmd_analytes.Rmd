@@ -49,9 +49,9 @@ opts_knit$set(root.dir = '../')
 
 ## Source R functions
 ```{r source R functions}
-source("../libpurzel/func_get_experiment_id.R")
-source("../libpurzel/func_get_gmd_analytes.R")
-source("../libpurzel/func_create_analytes_table.R")
+source("../functions/func_get_experiment_id.R")
+source("../functions/func_get_gmd_analytes.R")
+source("../functions/func_create_analytes_table.R")
 ```
 
 
@@ -77,8 +77,8 @@ experiment_id <- func_get_experiment_id("JKI_Shelter_2014")
 all_values_cast <- read.table("data/gmd_raw_values_matrix.txt", sep = "\t", header = T, check.names = F)
 
 dim(all_values_cast)
-# 5723 samples
-# 548 analytes
+# 6023 samples
+# 560 analytes
 
 pander(all_values_cast[1:3,1:3])
 ```
@@ -88,6 +88,9 @@ pander(all_values_cast[1:3,1:3])
 ```{r get analytes for specific experiment}
 
 gmd_analytes_jki_shelter_2014 <- func_get_gmd_analytes( func_get_experiment_id("JKI_Shelter_2014") )
+gmd_analytes_mpi_fgh_2014 <- func_get_gmd_analytes( func_get_experiment_id("MPI_FGH_2014") )
+
+gmd_analytes_mpi_fgh_2015 <- func_get_gmd_analytes( func_get_experiment_id("MPI_FGH_2015") )
 
 gmd_analytes_mpi_test_1 <- func_get_gmd_analytes( func_get_experiment_id("MPI_Test1_2") )
 gmd_analytes_mpi_test_2 <- func_get_gmd_analytes( func_get_experiment_id("MPI_Test2") )
@@ -118,7 +121,8 @@ length(gmd_analytes_overlap_7)
 
 # for all trost/valdis experiments
 gmd_analytes <- func_get_all_gmd_analytes()
-# 551 analytes
+dim(gmd_analytes)
+# 563 analytes
 pander(head(gmd_analytes))
 ```
 
@@ -129,6 +133,8 @@ Problem with hash "#" symbol http://stackoverflow.com/questions/7086945/how-can-
 inventory_list <- read.table("data/inventory_AFE.txt", header = T, sep = "\t", check.names = F, comment.char = "")
 inventory_list_part <- inventory_list[, 1:12]
 colnames(inventory_list_part)
+dim(inventory_list_part)
+# 3706 12
 
 # use DT library to show a formatted table
 datatable(inventory_list_part) %>%
@@ -209,6 +215,12 @@ experiments_17 <- c("MPI_Test1_2", "MPI_Test2", "JKI_Test1", "JKI_Test2",
                     "MPI_Feld_2011", "MPI_Feld_2012", "JKI_Feld_2012", "JKI_Feld_2012", "Dethlingen_2011",
                     "JKI_Shelter_2011", "JKI_Shelter_2012", "MPI_Pruef1", "MPI_Pruef2", "MPI_Pruef3",
                     "breeder_trials", "JKI_Shelter_2014", "MPI_FGH_2014")
+
+# including all TROST and VALDIS experiments (2014 and 2015)
+experiments_18 <- c("MPI_Test1_2", "MPI_Test2", "JKI_Test1", "JKI_Test2", 
+                    "MPI_Feld_2011", "MPI_Feld_2012", "JKI_Feld_2012", "JKI_Feld_2012", "Dethlingen_2011",
+                    "JKI_Shelter_2011", "JKI_Shelter_2012", "MPI_Pruef1", "MPI_Pruef2", "MPI_Pruef3",
+                    "breeder_trials", "JKI_Shelter_2014", "MPI_FGH_2014", "MPI_FGH_2015")
 ```
 
 
@@ -221,6 +233,9 @@ analytes_table_6 <- func_create_analytes_table(gmd_analytes_inventory, experimen
 analytes_table_7 <- func_create_analytes_table(gmd_analytes_inventory, experiments_7)
 analytes_table_15 <- func_create_analytes_table(gmd_analytes_inventory, experiments_15)
 analytes_table_17 <- func_create_analytes_table(gmd_analytes_inventory, experiments_17)
+analytes_table_18 <- func_create_analytes_table(gmd_analytes_inventory, experiments_18)
+
+write.table(analytes_table_18, "output/gmd_analytes_trost.txt", sep="\t", row.names = F)
 
 analytes_table_6_overlap <- subset(analytes_table_6, analytes_table_6$count_yes == 6)
 analytes_table_7_overlap <- subset(analytes_table_7, analytes_table_7$count_yes == 7)
@@ -233,7 +248,9 @@ analytes_table_7_overlap_select <- subset(analytes_table_7_overlap,
                                           analytes_table_7_overlap$select == "select")
 
 dim(analytes_table_6_overlap_select)
+# 110 21
 dim(analytes_table_7_overlap_select)
+# 107 22
 ```
 
 

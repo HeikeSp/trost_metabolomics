@@ -48,8 +48,8 @@ opts_knit$set(root.dir = '../')
 
 ## Source R functions
 ```{r source R functions, include=FALSE}
-source("../libpurzel/func_get_experiment_id.R")
-source("../libpurzel/func_get_gmd_values.R")
+source("../functions/func_get_experiment_id.R")
+source("../functions/func_get_gmd_values.R")
 ```
 
 
@@ -60,7 +60,7 @@ dbhandle <- odbcDriverConnect('driver={SQL Server};
                               database=GMD; 
                               trusted_connection=true')
 
-# login <- yaml.load_file("../libpurzel/login.yaml")
+# login <- yaml.load_file("../functions/login.yaml")
 
 # phenotyper <- dbConnect(MySQL(), user=login$user, password=login$passwd, dbname=login$db, host=login$host)  
 
@@ -94,7 +94,8 @@ all_values <- sqlQuery(dbhandle, 'SELECT FK_Analyte,
                                       GROUP BY FK_Analyte, FK_chromatogram')
 # Change colname
 dim(all_values)
-# 1055975      3
+# 1111577 3
+
 colnames(all_values)[3] <- "value"
 head(all_values)
 
@@ -111,7 +112,7 @@ write.table(all_values, "data/gmd_raw_values.txt", sep="\t")
 all_values_cast <- cast(all_values, FK_chromatogram ~ FK_Analyte, value="value")
 all_values_cast <- as.data.frame(all_values_cast)
 dim(all_values_cast)
-# 5723 samples, 549 analytes
+# 6032 samples, 561 analytes
 
 # all_values_cast[1:3,1:3]
 
@@ -119,8 +120,8 @@ dim(all_values_cast)
 rownames(all_values_cast) <- all_values_cast$FK_chromatogram
 all_values_cast <- all_values_cast[, -1]
 dim(all_values_cast)
-# 5723 samples (rows)
-# 548 analytes (columns)
+# 6032 samples (rows)
+# 560 analytes (columns)
 all_values_cast[1:3,1:3]
 
 write.table(all_values_cast, "data/gmd_raw_values_matrix.txt", sep="\t")
@@ -158,8 +159,11 @@ gmd_values_mpi_pruef_3 <- func_get_gmd_values( func_get_experiment_id("MPI_Pruef
 gmd_values_breeder_trials <- func_get_gmd_values( func_get_experiment_id("breeder_trials") )
 
 # VALDIS TROST2
+## 2014
 gmd_values_jki_shelter_2014 <- func_get_gmd_values( func_get_experiment_id("JKI_Shelter_2014") )
 gmd_values_mpi_fgh_2014 <- func_get_gmd_values( func_get_experiment_id("MPI_FGH_2014") )
+## 2015
+gmd_values_mpi_fgh_2015 <- func_get_gmd_values( func_get_experiment_id("MPI_FGH_2015") )
 ```
 
 
@@ -185,8 +189,11 @@ write.table(gmd_values_mpi_pruef_3, "data/gmd_values_mpi_pruef_3.txt", sep="\t",
 write.table(gmd_values_breeder_trials, "data/gmd_values_breeder_trials.txt", sep="\t", quote=FALSE)
 
 # VALDIS TROST2
+## 2014
 write.table(gmd_values_jki_shelter_2014, "data/gmd_values_jki_shelter_2014.txt", sep="\t", quote=FALSE)
 write.table(gmd_values_mpi_fgh_2014, "data/gmd_values_mpi_fgh_2014.txt", sep="\t", quote=FALSE)
+## 2015
+write.table(gmd_values_mpi_fgh_2015, "data/gmd_values_mpi_fgh_2015.txt", sep="\t", quote=FALSE)
 ```
 
 

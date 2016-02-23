@@ -46,7 +46,7 @@ opts_knit$set(root.dir = '../')
 
 # Source R functions
 ```{r source R functions}
-source("../libpurzel/func_compile_subset.R")
+source("../functions/func_compile_subset.R")
 ```
 
 
