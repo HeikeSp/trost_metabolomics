@@ -53,43 +53,40 @@ source("../functions/func_get_gmd_metatdata.R")
 ```
 
 
-## Set up database connection
-```{r set up database connection}
-# old version, using RODBC:
-dbhandle <- odbcDriverConnect('driver={SQL Server}; 
-                              server=r710sqljahu; 
-                              database=GMD; 
-                              trusted_connection=true')
+## Set up database connection to GMD
+[How to access MS-SQL databases in linux](http://wiki.mpimp-golm.mpg.de/index.php/Access_MSSQL_databases)
+[How to identify operating system from R](http://conjugateprior.org/2015/06/identifying-the-os-from-r/)
 
-# login <- yaml.load_file("../functions/login.yaml")
+```{r set up database connection to GMD}
 
-# phenotyper <- dbConnect(MySQL(), 
-#                         user=login$user, 
-#                         password=login$passwd, 
-#                         dbname=login$db, 
-#                         host=login$host)  
+login_gmd <- yaml.load_file("../functions/login_gmd.yaml")
 
-
-# new version, using RMySQL:
-# gmd_connection <- dbConnect(MySQL(), 
-#                             host = "gmd.mpimp-golm.mpg.de",
-#                             port = 3306,
-#                             user = "mpimp-golm\\hsprenger", 
-#                             password = "Potato", 
-#                             dbname = "r710sqljahu")
+if (.Platform$OS.type == 'windows'){
+  dbhandle <- odbcDriverConnect('driver={SQL Server}; 
+                                server=r710sqljahu; 
+                                database=GMD; 
+                                trusted_connection=true')
+} else { # if .Platform$OS.type == 'unix'
+  dbhandle <- odbcDriverConnect(
+    connection=paste0("server=",login_gmd$host,
+                      ";database=",login_gmd$db,
+                      ";uid=",login_gmd$user,
+                      ";pwd=",login_gmd$passwd,
+                      ";Port=1433;driver=FreeTDS;TDS_Version=8.0;"))
+}
 ```
 
 
-## Read tables: ``trost_TagList`` and ``phenotyper_result_joined``
+## Read tables: ``trost_TagList`` and ``phenotyper_result_joined_with_gmd_ids``
 
 * ``trost_TagList`` shows all experiments that belong to the TROST/VALDIS project and comes from ``gmd_first_steps.Rmd``
-* ``phenotyper_result_joined`` contains meta information about samples and comes from ``phenotyper_metadata.Rmd``
+* ``phenotyper_result_joined_with_gmd_ids`` contains meta information about samples and comes from ``phenotyper_metadata.Rmd``
 
 ```{r read tables}
 trost_TagList <- read.table("data/trost_TagList.txt", sep="\t", header=TRUE)
 
 # contains also valdis (2014 and 2015 data)
-phenotyper_result_joined <- read.table("data/phenotyper_result_joined_with_gmd_ids.txt", sep="\t", header=TRUE)
+phenotyper_result_joined_with_gmd_ids <- read.table("data/phenotyper_result_joined_with_gmd_ids.txt", sep="\t", header=TRUE)
 ```
 
 
@@ -114,47 +111,53 @@ sort(trost_TagList$experiment)
 
 # combination of both functions
 gmd_meta_mpi_test_1_2 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Test1_2") , 
-                                                 phenotyper_result_joined)
+                                                 phenotyper_result_joined_with_gmd_ids)
 gmd_meta_mpi_test_2 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Test2") , 
-                                               phenotyper_result_joined)
+                                               phenotyper_result_joined_with_gmd_ids)
 gmd_meta_jki_test_1 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Test1") , 
-                                               phenotyper_result_joined)
+                                               phenotyper_result_joined_with_gmd_ids)
 gmd_meta_jki_test_2 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Test2") , 
-                                               phenotyper_result_joined)
+                                               phenotyper_result_joined_with_gmd_ids)
 
 gmd_meta_mpi_field_2011 <- func_get_gmd_metatdata_all( func_get_experiment_id("MPI_Feld_2011") , 
-                                                       phenotyper_result_joined)
+                                                       phenotyper_result_joined_with_gmd_ids)
 gmd_meta_mpi_field_2012 <- func_get_gmd_metatdata_all( func_get_experiment_id("MPI_Feld_2012") , 
-                                                       phenotyper_result_joined)
+                                                       phenotyper_result_joined_with_gmd_ids)
 gmd_meta_jki_field_2012 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Feld_2012") , 
-                                                   phenotyper_result_joined)
-#gmd_meta_jki_field_2013 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Feld_2013") , phenotyper_result_joined)
+                                                   phenotyper_result_joined_with_gmd_ids)
+#gmd_meta_jki_field_2013 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Feld_2013") , phenotyper_result_joined_with_gmd_ids)
 gmd_meta_dethlingen_2011 <- func_get_gmd_metatdata( func_get_experiment_id("Dethlingen_2011") , 
-                                                    phenotyper_result_joined)
+                                                    phenotyper_result_joined_with_gmd_ids)
 
 gmd_meta_jki_shelter_2011 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Shelter_2011") , 
-                                                     phenotyper_result_joined)
+                                                     phenotyper_result_joined_with_gmd_ids)
 gmd_meta_jki_shelter_2012 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Shelter_2012") , 
-                                                     phenotyper_result_joined)
+                                                     phenotyper_result_joined_with_gmd_ids)
 gmd_meta_mpi_pruef_1 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Pruef1") , 
-                                                phenotyper_result_joined)
+                                                phenotyper_result_joined_with_gmd_ids)
 gmd_meta_mpi_pruef_2 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Pruef2") , 
-                                                phenotyper_result_joined)
+                                                phenotyper_result_joined_with_gmd_ids)
 gmd_meta_mpi_pruef_3 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Pruef3") , 
-                                                phenotyper_result_joined)
+                                                phenotyper_result_joined_with_gmd_ids)
 
 gmd_meta_mpi_pruef_1 <- gmd_meta_mpi_pruef_1[-178,]
 gmd_meta_mpi_pruef_2 <- gmd_meta_mpi_pruef_2[-48,]
 
-#gmd_meta_breeder_trials <- func_get_gmd_metatdata( func_get_experiment_id("breeder_trials") , phenotyper_result_joined)
+#gmd_meta_breeder_trials <- func_get_gmd_metatdata( func_get_experiment_id("breeder_trials") , phenotyper_result_joined_with_gmd_ids)
 
 # VALDIS TROST 2014 and 2015
+# 2014
 gmd_meta_jki_shelter_2014 <- func_get_gmd_metatdata_all( func_get_experiment_id("JKI_Shelter_2014"), 
-                                                         phenotyper_result_joined )
+                                                         phenotyper_result_joined_with_gmd_ids )
 gmd_meta_mpi_fgh_2014 <- func_get_gmd_metatdata_all( func_get_experiment_id("MPI_FGH_2014"), 
-                                                     phenotyper_result_joined)
+                                                     phenotyper_result_joined_with_gmd_ids)
+# 2015
 gmd_meta_mpi_fgh_2015 <- func_get_gmd_metatdata_all( func_get_experiment_id("MPI_FGH_2015"), 
-                                                     phenotyper_result_joined)
+                                                     phenotyper_result_joined_with_gmd_ids)
+gmd_meta_mpi_field_2015 <- func_get_gmd_metatdata_all( func_get_experiment_id("MPI_Feld_2015"), 
+                                                     phenotyper_result_joined_with_gmd_ids)
+gmd_meta_jki_shelter_2015 <- func_get_gmd_metatdata_all( func_get_experiment_id("JKI_Shelter_2015"), 
+                                                         phenotyper_result_joined_with_gmd_ids )
 ```
 
 
@@ -180,11 +183,13 @@ write.table(gmd_meta_mpi_pruef_3, "data/gmd_meta_mpi_pruef_3.txt", sep="\t", quo
 write.table(gmd_meta_jki_shelter_2014, "data/gmd_meta_jki_shelter_2014.txt", sep="\t", quote=FALSE)
 write.table(gmd_meta_mpi_fgh_2014, "data/gmd_meta_mpi_fgh_2014.txt", sep="\t", quote=FALSE)
 write.table(gmd_meta_mpi_fgh_2015, "data/gmd_meta_mpi_fgh_2015.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_mpi_field_2015, "data/gmd_meta_mpi_field_2015.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_jki_shelter_2015, "data/gmd_meta_jki_shelter_2015.txt", sep="\t", quote=FALSE)
 ```
 
 
-## Save workspace and sessionInfo
-```{r save workspace and sessionInfo}
+## Save workspace
+```{r save workspace}
 save.image("gmd_data.RData")
-sessionInfo()
+#sessionInfo()
 ```

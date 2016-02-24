@@ -30,7 +30,7 @@ library(pander)
 library(plyr)
 library(RODBC)
 # library(RMySQL)
-# library(yaml)
+library(yaml)
 
 # set options for pander
 panderOptions('table.split.table', 200)
@@ -45,22 +45,31 @@ opts_knit$set(root.dir = '../')
 ```
 
 
-## Set up database connection
-```{r set up database connection}
-dbhandle <- odbcDriverConnect('driver={SQL Server}; 
-                              server=r710sqljahu; 
-                              database=GMD; 
-                              trusted_connection=true')
+## Set up database connection to GMD
+[How to access MS-SQL databases in linux](http://wiki.mpimp-golm.mpg.de/index.php/Access_MSSQL_databases)
+[How to identify operating system from R](http://conjugateprior.org/2015/06/identifying-the-os-from-r/)
 
-# login <- yaml.load_file("../functions/login.yaml")
+```{r set up database connection to GMD}
 
-# phenotyper <- dbConnect(MySQL(), user=login$user, password=login$passwd, dbname=login$db, host=login$host)  
+login_gmd <- yaml.load_file("../functions/login_gmd.yaml")
 
-# gmd_connection <- dbConnect(MySQL(), 
-#                             user = "MPIMP-GOLM\HSprenger", 
-#                             password = Potato, 
-#                             dbname = r710sqljahu, 
-#                             host = gmd.mpimp-golm.mpg.de)  
+if (.Platform$OS.type == 'windows'){
+  dbhandle <- odbcDriverConnect('driver={SQL Server}; 
+                                server=r710sqljahu; 
+                                database=GMD; 
+                                trusted_connection=true')
+} else { # if .Platform$OS.type == 'unix'
+  dbhandle <- odbcDriverConnect(
+    connection=paste0("server=",login_gmd$host,
+                      ";database=",login_gmd$db,
+                      ";uid=",login_gmd$user,
+                      ";pwd=",login_gmd$passwd,
+                      ";Port=1433;driver=FreeTDS;TDS_Version=8.0;"))
+}
+
+# test of connection
+test <- sqlQuery(dbhandle, 'select * from GMD.tf.TagList')
+str(test)
 ```
 
 
@@ -138,17 +147,13 @@ write.table(trost_gmd_ids, "data/trost_gmd_ids.txt", sep="\t")
 **and join phenotyper results with trost_gmd_ids by common GMD_id**
 ```{r import TROST phenotyper query results}
 phenotyper_result_joined <- read.table("data/phenotyper_result_joined.txt", sep="\t", header=TRUE)
-phenotyper_result_joined_valdis <- read.table("data/phenotyper_result_joined_valdis.txt", sep="\t", header=TRUE)
-phenotyper_result_joined_valdis_2015 <- read.table("data/phenotyper_result_joined_valdis_2015.txt", sep="\t", header=TRUE)
-dim(phenotyper_result_joined_valdis)
-# 4555 24
-dim(phenotyper_result_joined_valdis_2015)
-# 4809 24
+dim(phenotyper_result_joined)
+# 4790 24
 
 # phenotyper_result_joined_with_gmd_ids <- join(phenotyper_result_joined_valdis, trost_gmd_ids, by="GMD_id")
-phenotyper_result_joined_with_gmd_ids <- join(phenotyper_result_joined_valdis_2015, trost_gmd_ids, by="GMD_id")
+phenotyper_result_joined_with_gmd_ids <- join(phenotyper_result_joined, trost_gmd_ids, by="GMD_id")
 dim(phenotyper_result_joined_with_gmd_ids)
-# 4809 24
+# 4790 25
 
 # order table by chromatogram id
 phenotyper_result_joined_with_gmd_ids <- phenotyper_result_joined_with_gmd_ids[order(phenotyper_result_joined_with_gmd_ids$chromatogram),]
@@ -185,7 +190,8 @@ write.table(phenotyper_result_joined_with_gmd_ids, "data/phenotyper_result_joine
 ```
 
 
-## SessionInfo
-```{r sessionInfo}
-sessionInfo()
+## Save workspace
+```{r save workspace}
+save.image("phenotyper.RData")
+#sessionInfo()
 ```

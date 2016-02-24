@@ -51,3 +51,9 @@ opts_chunk$set(fig.width=5, fig.height=5, cache=FALSE, highlight = TRUE, fig.sho
 # Get GMD analytes information
 ```{r child='gmd_analytes.Rmd'}
 ```
+
+
+# SessionInfo
+```{r sessionInfo}
+sessionInfo()
+```
