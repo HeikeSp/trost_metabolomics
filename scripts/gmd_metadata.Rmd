@@ -49,7 +49,7 @@ opts_knit$set(root.dir = '../')
 ## Source R functions
 ```{r source R functions, include=FALSE}
 source("../functions/func_get_experiment_id.R")
-source("../functions/func_get_gmd_metatdata.R")
+source("../functions/func_get_gmd_metadata.R")
 ```
 
 
@@ -110,53 +110,53 @@ experiment_id <- func_get_experiment_id("MPI_Feld_2011")
 sort(trost_TagList$experiment)
 
 # combination of both functions
-gmd_meta_mpi_test_1_2 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Test1_2") , 
+gmd_meta_mpi_test_1_2 <- func_get_gmd_metadata( func_get_experiment_id("MPI_Test1_2") , 
                                                  phenotyper_result_joined_with_gmd_ids)
-gmd_meta_mpi_test_2 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Test2") , 
+gmd_meta_mpi_test_2 <- func_get_gmd_metadata( func_get_experiment_id("MPI_Test2") , 
                                                phenotyper_result_joined_with_gmd_ids)
-gmd_meta_jki_test_1 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Test1") , 
+gmd_meta_jki_test_1 <- func_get_gmd_metadata( func_get_experiment_id("JKI_Test1") , 
                                                phenotyper_result_joined_with_gmd_ids)
-gmd_meta_jki_test_2 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Test2") , 
+gmd_meta_jki_test_2 <- func_get_gmd_metadata( func_get_experiment_id("JKI_Test2") , 
                                                phenotyper_result_joined_with_gmd_ids)
 
-gmd_meta_mpi_field_2011 <- func_get_gmd_metatdata_all( func_get_experiment_id("MPI_Feld_2011") , 
+gmd_meta_mpi_field_2011 <- func_get_gmd_metadata_all( func_get_experiment_id("MPI_Feld_2011") , 
                                                        phenotyper_result_joined_with_gmd_ids)
-gmd_meta_mpi_field_2012 <- func_get_gmd_metatdata_all( func_get_experiment_id("MPI_Feld_2012") , 
+gmd_meta_mpi_field_2012 <- func_get_gmd_metadata_all( func_get_experiment_id("MPI_Feld_2012") , 
                                                        phenotyper_result_joined_with_gmd_ids)
-gmd_meta_jki_field_2012 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Feld_2012") , 
+gmd_meta_jki_field_2012 <- func_get_gmd_metadata( func_get_experiment_id("JKI_Feld_2012") , 
                                                    phenotyper_result_joined_with_gmd_ids)
-#gmd_meta_jki_field_2013 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Feld_2013") , phenotyper_result_joined_with_gmd_ids)
-gmd_meta_dethlingen_2011 <- func_get_gmd_metatdata( func_get_experiment_id("Dethlingen_2011") , 
+#gmd_meta_jki_field_2013 <- func_get_gmd_metadata( func_get_experiment_id("JKI_Feld_2013") , phenotyper_result_joined_with_gmd_ids)
+gmd_meta_dethlingen_2011 <- func_get_gmd_metadata( func_get_experiment_id("Dethlingen_2011") , 
                                                     phenotyper_result_joined_with_gmd_ids)
 
-gmd_meta_jki_shelter_2011 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Shelter_2011") , 
+gmd_meta_jki_shelter_2011 <- func_get_gmd_metadata( func_get_experiment_id("JKI_Shelter_2011") , 
                                                      phenotyper_result_joined_with_gmd_ids)
-gmd_meta_jki_shelter_2012 <- func_get_gmd_metatdata( func_get_experiment_id("JKI_Shelter_2012") , 
+gmd_meta_jki_shelter_2012 <- func_get_gmd_metadata( func_get_experiment_id("JKI_Shelter_2012") , 
                                                      phenotyper_result_joined_with_gmd_ids)
-gmd_meta_mpi_pruef_1 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Pruef1") , 
+gmd_meta_mpi_pruef_1 <- func_get_gmd_metadata( func_get_experiment_id("MPI_Pruef1") , 
                                                 phenotyper_result_joined_with_gmd_ids)
-gmd_meta_mpi_pruef_2 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Pruef2") , 
+gmd_meta_mpi_pruef_2 <- func_get_gmd_metadata( func_get_experiment_id("MPI_Pruef2") , 
                                                 phenotyper_result_joined_with_gmd_ids)
-gmd_meta_mpi_pruef_3 <- func_get_gmd_metatdata( func_get_experiment_id("MPI_Pruef3") , 
+gmd_meta_mpi_pruef_3 <- func_get_gmd_metadata( func_get_experiment_id("MPI_Pruef3") , 
                                                 phenotyper_result_joined_with_gmd_ids)
 
 gmd_meta_mpi_pruef_1 <- gmd_meta_mpi_pruef_1[-178,]
 gmd_meta_mpi_pruef_2 <- gmd_meta_mpi_pruef_2[-48,]
 
-#gmd_meta_breeder_trials <- func_get_gmd_metatdata( func_get_experiment_id("breeder_trials") , phenotyper_result_joined_with_gmd_ids)
+#gmd_meta_breeder_trials <- func_get_gmd_metadata( func_get_experiment_id("breeder_trials") , phenotyper_result_joined_with_gmd_ids)
 
 # VALDIS TROST 2014 and 2015
 # 2014
-gmd_meta_jki_shelter_2014 <- func_get_gmd_metatdata_all( func_get_experiment_id("JKI_Shelter_2014"), 
+gmd_meta_jki_shelter_2014 <- func_get_gmd_metadata_all( func_get_experiment_id("JKI_Shelter_2014"), 
                                                          phenotyper_result_joined_with_gmd_ids )
-gmd_meta_mpi_fgh_2014 <- func_get_gmd_metatdata_all( func_get_experiment_id("MPI_FGH_2014"), 
+gmd_meta_mpi_fgh_2014 <- func_get_gmd_metadata_all( func_get_experiment_id("MPI_FGH_2014"), 
                                                      phenotyper_result_joined_with_gmd_ids)
 # 2015
-gmd_meta_mpi_fgh_2015 <- func_get_gmd_metatdata_all( func_get_experiment_id("MPI_FGH_2015"), 
+gmd_meta_mpi_fgh_2015 <- func_get_gmd_metadata_all( func_get_experiment_id("MPI_FGH_2015"), 
                                                      phenotyper_result_joined_with_gmd_ids)
-gmd_meta_mpi_field_2015 <- func_get_gmd_metatdata_all( func_get_experiment_id("MPI_Feld_2015"), 
+gmd_meta_mpi_field_2015 <- func_get_gmd_metadata_all( func_get_experiment_id("MPI_Feld_2015"), 
                                                      phenotyper_result_joined_with_gmd_ids)
-gmd_meta_jki_shelter_2015 <- func_get_gmd_metatdata_all( func_get_experiment_id("JKI_Shelter_2015"), 
+gmd_meta_jki_shelter_2015 <- func_get_gmd_metadata_all( func_get_experiment_id("JKI_Shelter_2015"), 
                                                          phenotyper_result_joined_with_gmd_ids )
 ```
 
