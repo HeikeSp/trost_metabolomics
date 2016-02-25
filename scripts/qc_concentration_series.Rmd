@@ -1,0 +1,507 @@
+---
+title: "QC concentration series data analysis"
+author: "Heike Sprenger"
+date: "Wednesday, February 25, 2016"
+output:
+  html_document:
+    highlight: tango
+    number_section: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 4
+---
+
+
+# Set options
+```{r set-options, echo=FALSE, cache=FALSE}
+options(width=600)
+```
+
+
+# Set working directory and load workspace
+```{r set up, message=FALSE}
+#setwd("D:/work/repos/trost_metabolomics")
+#setwd("~/work/repos/trost_metabolomics/")
+#load("qc_concentration_series.RData")
+
+library(knitr)
+library(pander)
+library(reshape)
+library(plyr)
+library(gplots)
+library(plyr)
+library(dendextend)
+library(MetNorm)
+library(RODBC)
+library(RMySQL)
+library(yaml)
+library(pcaMethods)
+
+# set options for pander
+panderOptions('table.split.table', 200)
+
+# set options for knitr
+opts_chunk$set(fig.width=5, fig.height=5, cache=FALSE, highlight = TRUE, fig.show="asis")
+opts_knit$set(root.dir = '../')
+
+# load workspace
+# load("yield_data_valdis.RData")
+```
+
+
+# Source R functions
+```{r source R functions, include=FALSE}
+source("../functions/func_get_experiment_id.R")
+source("../functions/func_get_gmd_metadata.R")
+source("../functions/func_cv.R")
+source("../functions/colors.R")
+source("../functions/RemoveFactors_function.R")
+source("../functions/func_normalize.R")
+```
+
+
+# Set up database connection to GMD
+[How to access MS-SQL databases in linux](http://wiki.mpimp-golm.mpg.de/index.php/Access_MSSQL_databases)
+[How to identify operating system from R](http://conjugateprior.org/2015/06/identifying-the-os-from-r/)
+
+```{r set up database connection to GMD}
+
+login_gmd <- yaml.load_file("../functions/login_gmd.yaml")
+
+if (.Platform$OS.type == 'windows'){
+  dbhandle <- odbcDriverConnect('driver={SQL Server}; 
+                                server=r710sqljahu; 
+                                database=GMD; 
+                                trusted_connection=true')
+} else { # if .Platform$OS.type == 'unix'
+  dbhandle <- odbcDriverConnect(
+    connection=paste0("server=",login_gmd$host,
+                      ";database=",login_gmd$db,
+                      ";uid=",login_gmd$user,
+                      ";pwd=",login_gmd$passwd,
+                      ";Port=1433;driver=FreeTDS;TDS_Version=8.0;"))
+}
+```
+
+# Read tables: ``trost_TagList``
+
+* ``trost_TagList`` shows all experiments that belong to the TROST/VALDIS project and comes from ``gmd_first_steps.Rmd``
+
+```{r read tables}
+trost_TagList <- read.table("data/trost_TagList.txt", sep="\t", header=TRUE)
+
+trost_gmd_ids <- read.table("data/trost_gmd_ids.txt", sep="\t", header=TRUE)
+head(trost_gmd_ids)
+```
+
+
+# Load information about QC samples
+```{r load information about QC samples}
+qc_info_blank <- read.table("data/qc_concentration_series_with_blanks.txt", sep = "\t", header = T, check.names = F)
+
+dim(qc_info_blank)
+head(qc_info_blank)
+colnames(qc_info_blank)[1] <- "GMD_id"
+
+qc_info_blank$concentration <- factor(qc_info_blank$concentration, levels=c("t0","t6", "t12", "t25", "t50", "t100", "t200"))
+table(qc_info_blank$concentration)
+
+# integer
+class(qc_info_blank$sequence_id)
+
+qc_info_blank_with_ids <- join(qc_info_blank, trost_gmd_ids, by="GMD_id", type = "inner")
+dim(qc_info_blank_with_ids)
+```
+
+
+# Get GMD meta data
+**use function ``func_get_gmd_metadata_3`` that omits FW and DW but returns Sorbitol (Is) and AvgAnnotated per chromatogram**
+
+[Solution for rbind and loop](http://stackoverflow.com/questions/26843861/replace-rbind-in-for-loop-with-lapply-2nd-circle-of-hell)
+
+```{r get GMD meta data}
+remove_exp <- c("QC_1", "QC_2", "QC_3", "QC_4", "MPI_Test2_old")
+remove_exp_idx <- which(trost_TagList$experiment %in% remove_exp)
+
+trost_TagList_qc <- trost_TagList[-remove_exp_idx,]
+
+gmd_meta_per_exp_list <- vector("list", nrow(trost_TagList_qc))
+
+for (i in trost_TagList_qc$id){
+  gmd_meta_per_exp_list[[i]] <- func_get_gmd_metadata_3(i)
+  }
+
+gmd_meta_per_exp <- do.call(rbind, gmd_meta_per_exp_list)
+dim(gmd_meta_per_exp)
+```
+
+
+## Remove duplicate entries in gmd_meta
+* these 6 gmd_ids were assigned to 2 experiments: MPI FGH 2014 and JKI Shelter 2014
+* remove entries for MPI FGH 2014 (9519AAB5-12D3-47C6-995C-02F25F58CD67)
+
+```{r remove duplicate entries in gmd_meta}
+duplicate_gmd_ids <- c('14301if_6','14301if_7','14301if_8','14301if_9','14301if_10','14301if_11')
+duplicate_chromatograms <- qc_info_blank_with_ids$chromatogram[which(qc_info_blank_with_ids$GMD_id %in% duplicate_gmd_ids)]
+
+duplicate_idx <- intersect(grep("9519AAB5-12D3-47C6-995C-02F25F58CD67", rownames(gmd_meta_per_exp)),
+                           which(gmd_meta_per_exp$chromatogram %in% duplicate_chromatograms))
+
+gmd_meta_per_exp <- gmd_meta_per_exp[-duplicate_idx,]
+
+dim(gmd_meta_per_exp)
+
+# remove rownames
+rownames(gmd_meta_per_exp) <- NULL
+head(gmd_meta_per_exp)
+```
+
+
+## Merge information about QC samples with gmd meta data
+```{r merge information about QC samples with gmd meta data}
+
+qc_info_final <- join(qc_info_blank_with_ids, gmd_meta_per_exp, by="chromatogram")
+dim(qc_info_final)
+
+qc_info_final <- qc_info_final[order(qc_info_final$chromatogram),]
+```
+
+
+# Load all GMD raw values
+```{r load all GMD raw values}
+all_values_cast <- read.table("data/gmd_raw_values_matrix.txt", sep = "\t", header = T, check.names = F)
+
+dim(all_values_cast)
+
+qc_values_idx <- which(rownames(all_values_cast) %in% qc_info_blank_with_ids$chromatogram)
+
+qc_values <- all_values_cast[qc_values_idx,]
+dim(qc_values)
+```
+
+
+# Exclude analytes with many NAs
+**exclude analytes with more than 600 NAs (of 816 samples)**
+```{r exclude analytes with many NAs}
+
+qc_values_NA <- apply(qc_values, 2, FUN = function(x) sum(is.na(x)))
+
+hist(qc_values_NA, breaks=50, col = "gray")
+
+qc_values_NA_idx <- which(qc_values_NA > 500)
+qc_values_part <- qc_values[,-qc_values_NA_idx]
+dim(qc_values_part)
+# 816 156
+
+# calculate CV per analyte
+qc_values_part_cv_per_analyte <- apply(qc_values_part, 2, FUN = func_CV)
+head(qc_values_part_cv_per_analyte)
+```
+
+
+# Analysis of alkan analytes
+```{r analysis of alkan analytes}
+alkan_ids <- c("ABD59C73-3CA6-4508-B950-18336DB59BE3", "1310FACD-F2BF-4FD7-BC20-B21DF06EDE79", "B8926297-132A-4B5D-B9C2-294F3F006246",
+               "2994BC5D-52BE-44F8-9824-0253A3BD2243", "E66BE919-93E8-4101-AB46-9612FE796394", "379E5588-B955-4C35-88E0-21E7DF38DE0E",
+               "896D4B7E-BF33-4D54-82CE-7360D88E8DC8")
+alkan_names <- c("Docosane", "Dodecane", "Dotriacontane", "Hexatriacontane", 
+                 "Octacosane", "Octadecane", "Pentadecane")
+
+alkan_idx <- which(names(qc_values_part_cv_per_analyte) %in% alkan_ids)
+qc_values_part_cv_per_analyte[alkan_idx]
+
+alkan_boolean <- logical(dim(qc_values_part)[2]) # 193x FALSE
+alkan_boolean[alkan_idx] <- TRUE # set alkan to TRUE
+
+qc_values_alkan <- data.frame(qc_values_part[, alkan_idx],
+                              trial = qc_info_final$trial, 
+                              check.names = F)
+
+qc_values_alkan_melt <- melt(qc_values_alkan)
+head(qc_values_alkan_melt)
+
+# calculate CV per analyte and experiment/trial
+qc_values_alkan_melt_cv <- ddply(qc_values_alkan_melt, c("variable","trial"), summarise, 
+                                 cv = sd(value, na.rm = T)/mean(value, na.rm = T))
+head(qc_values_alkan_melt_cv)
+
+qc_values_alkan_melt_cv_cast <- cast(qc_values_alkan_melt_cv, variable ~ trial)
+heatmap.2(as.matrix(qc_values_alkan_melt_cv_cast), trace = "none")
+```
+
+
+# PCA: all QC samples
+```{r PCA all QC samples}
+# log10 transformation
+dim(qc_values_part) # without analytes with many NAs
+# 816 samples, 156 analytes
+qc_values_part_log10 <- log10(qc_values_part)
+
+# Scaling
+qc_pareto <- prep(as.matrix(qc_values_part_log10), scale = "pareto", center = FALSE)
+
+# PCA
+qc_pareto_rnipals <- pca(qc_pareto, nPcs=5, method="rnipals")
+
+# R2cum
+qc_pareto_rnipals@R2cum
+```
+
+
+## PCA: score plots
+```{r PCA score plots}
+pdf("figures/qc_concentration_series/qc_pca_scores_plot_before_norm.pdf")
+
+# concentration effect
+palette(heike_palette_7)
+pairs(qc_pareto_rnipals@scores[,1:5], col=qc_info_final$concentration, pch=19, cex=1.5,main="concentration effect")
+
+plot(qc_pareto_rnipals@scores[,1], qc_pareto_rnipals@scores[,2], 
+     col=qc_info_final$concentration, pch=19, cex=1.5, main="concentration effect")
+legend("bottomright", levels(qc_info_final$concentration), fill=1:7, cex=0.8)
+
+plot(qc_pareto_rnipals@scores[,1], qc_pareto_rnipals@scores[,3], 
+     col=qc_info_final$concentration, pch=19, cex=1.5, main="concentration effect")
+legend("topleft", levels(qc_info_final$concentration), fill=1:7, cex=0.8)
+
+# trial effect
+palette(rainbow(20))
+pairs(qc_pareto_rnipals@scores[,1:5], col=qc_info_final$trial, pch=19, cex=1.5, main="trial effect")
+
+par(mar=c(5.1, 4.1, 4.1, 10), xpd=T)
+plot(qc_pareto_rnipals@scores[,2], qc_pareto_rnipals@scores[,3], 
+     col=qc_info_final$trial, pch=19, cex=1.5, main="trial effect")
+legend("topright", levels(qc_info_final$trial), fill=1:20, cex=0.8, inset = c(-0.4,0))
+
+plot(qc_pareto_rnipals@scores[,1], qc_pareto_rnipals@scores[,3], 
+     col=qc_info_final$trial, pch=19, cex=1.5, main="trial effect")
+legend("topright", levels(qc_info_final$trial), fill=1:20, cex=0.8, inset = c(-0.4,0))
+
+dev.off()
+```
+
+
+# Normalized Values
+```{r normalized values, warning=FALSE}
+qc_values_part_log10_norm <- func_normalize(qc_values_part_log10, 
+                                            trial_factors = qc_info_final,
+                                            facs = c("concentration", "sequence_id", "batch_id", "AvgAnnotated"),
+                                            keep = "concentration")
+
+dim(qc_values_part_log10_norm)
+# 816 156
+
+# amount of NAs
+sum(is.na(qc_values)) / (nrow(qc_values) * ncol(qc_values)) * 100
+sum(is.na(qc_values_part_log10_norm)) / (nrow(qc_values_part_log10_norm) * ncol(qc_values_part_log10_norm)) * 100
+# 32.7%
+
+#################################
+
+# using sorbitol = C391707B-E687-477D-9BF9-A3EA182D8DA4
+# sorbitol_values_part_log10 <- qc_values_cast_part_log10[,"C391707B-E687-477D-9BF9-A3EA182D8DA4"]
+# 
+# dim(qc_info_final)
+# qc_info_final_sorbitol <- cbind(qc_info_final, sorbitol_values_part_log10)
+# colnames(qc_info_final_sorbitol)[9] <- "sorbitol_log10"
+# class(qc_info_final_sorbitol$sorbitol_log10)
+# 
+# qc_values_cast_part_log10_norm_sorbitol <- apply(qc_values_cast_part_log10, 2, RemoveFactors, sam=qc_info_final_sorbitol, 
+#                               facs=c("concentration", "sequence_id", "batch_id", "sorbitol_log10"), 
+#                               keep="concentration")
+# dim(qc_values_cast_part_log10_norm_sorbitol)
+# # 155 218
+# qc_values_cast_part_log10_norm_sorbitol[1:3,1:3]
+```
+
+
+# PCA: all QC samples normalized
+```{r PCA all QC samples normalized}
+# Scaling
+qc_log10_norm_pareto <- prep(as.matrix(qc_values_part_log10_norm), scale = "pareto", center = FALSE)
+
+# PCA
+qc_log10_norm_pareto_rnipals <- pca(qc_log10_norm_pareto, nPcs=5, method="rnipals")
+
+# R2cum
+qc_log10_norm_pareto_rnipals@R2cum
+qc_log10_norm_pareto_rnipals@R2
+
+# before normalization
+qc_pareto_rnipals@R2cum
+```
+
+
+## PCA: score plots normalized
+```{r PCA score plots normalized}
+pdf("figures/qc_concentration_series/qc_pca_scores_plot_after_norm.pdf")
+
+# concentration effect
+palette(heike_palette_7)
+pairs(qc_log10_norm_pareto_rnipals@scores[,1:5], col=qc_info_final$concentration, pch=19, cex=1.5,main="concentration effect")
+
+plot(qc_log10_norm_pareto_rnipals@scores[,1], qc_log10_norm_pareto_rnipals@scores[,2], 
+     col=qc_info_final$concentration, pch=19, cex=1.5, main="concentration effect")
+legend("bottomright", levels(qc_info_final$concentration), fill=1:7, cex=0.8)
+
+plot(qc_log10_norm_pareto_rnipals@scores[,1], qc_log10_norm_pareto_rnipals@scores[,3], 
+     col=qc_info_final$concentration, pch=19, cex=1.5, main="concentration effect")
+legend("topleft", levels(qc_info_final$concentration), fill=1:7, cex=0.8)
+
+plot(qc_log10_norm_pareto_rnipals@scores[,2], qc_log10_norm_pareto_rnipals@scores[,3], 
+     col=qc_info_final$concentration, pch=19, cex=1.5, main="concentration effect")
+legend("topleft", levels(qc_info_final$concentration), fill=1:7, cex=0.8)
+
+# trial effect
+palette(rainbow(20))
+pairs(qc_log10_norm_pareto_rnipals@scores[,1:5], col=qc_info_final$trial, pch=19, cex=1.5, main="trial effect")
+
+par(mar=c(5.1, 4.1, 4.1, 10), xpd=T)
+plot(qc_log10_norm_pareto_rnipals@scores[,2], qc_log10_norm_pareto_rnipals@scores[,3], 
+     col=qc_info_final$trial, pch=19, cex=1.5, main="trial effect")
+legend("topright", levels(qc_info_final$trial), fill=1:20, cex=0.8, inset = c(-0.4,0))
+
+plot(qc_log10_norm_pareto_rnipals@scores[,1], qc_log10_norm_pareto_rnipals@scores[,3], 
+     col=qc_info_final$trial, pch=19, cex=1.5, main="trial effect")
+legend("topright", levels(qc_info_final$trial), fill=1:20, cex=0.8, inset = c(-0.4,0))
+
+dev.off()
+```
+
+
+# Dataset without blanks
+```{r dataset without blanks}
+blank_idx <- which(qc_info_final$concentration == "t0")
+
+qc_info_wo_blanks <- qc_info_final[-blank_idx,]
+qc_values_part_log10_norm_wo_blanks <- qc_values_part_log10_norm[-blank_idx,]
+
+dim(qc_info_wo_blanks)
+dim(qc_values_part_log10_norm_wo_blanks)
+```
+
+
+# Correlation analysis after normalization
+```{r correlation analysis}
+dim(qc_values_part_log10_norm)
+# 816 156
+tail(sort(apply(qc_values_part_log10_norm, 2, function(x) 816-length(na.omit(x)))))
+hist(apply(qc_values_part_log10_norm, 2, function(x) 816-length(na.omit(x))), breaks=20, xlab="NAs per analyte", col="lightblue")
+
+
+# before normalization
+res_cor_conc_r <- rep(NA, 156)
+for (i in 1:156){
+    res_cor_conc_r[i] <- cor.test(qc_info_final$concentration_num, qc_values_part_log10[,i])$estimate
+}
+
+res_cor_conc_p <- rep(NA, 156)
+for (i in 1:156){
+    res_cor_conc_p[i] <- cor.test(qc_info_final$concentration_num, qc_values_part_log10[,i])$p.value
+}
+
+# after normalization
+
+res_cor_conc_r_norm <- rep(NA, 156)
+for (i in 1:156){
+    res_cor_conc_r_norm[i] <- cor.test(qc_info_final$concentration_num, qc_values_part_log10_norm[,i])$estimate
+}
+
+res_cor_conc_p_norm <- rep(NA, 156)
+for (i in 1:156){
+    res_cor_conc_p_norm[i] <- cor.test(qc_info_final$concentration_num, qc_values_part_log10_norm[,i])$p.value
+}
+
+tail(order(res_cor_conc_r))
+hist(res_cor_conc_r, col="grey")
+hist(res_cor_conc_p, col="grey")
+
+res_cor_conc_padj <- p.adjust(res_cor_conc_p, method="bonferroni")
+res_cor_conc_padj_norm <- p.adjust(res_cor_conc_p_norm, method="bonferroni")
+
+hist(res_cor_conc_padj, breaks=30, col="grey")
+length(which(res_cor_conc_padj == 0))
+length(which(res_cor_conc_padj_norm == 0))
+
+# plot cor values with/without sorbitol as additional normalization factor
+#sig_idx <- which(res_cor_conc_padj==0)
+plot(res_cor_conc_r_norm, res_cor_conc_r)
+abline(0,1)
+#identify(res_cor_conc_r_sorb, res_cor_conc_r)
+```
+
+### scatterplot after normalization
+```{r scatterplot after normalization}
+pdf("figures/qc_concentration_series/qc_boxplot_normalized.pdf")
+for (i in 1:156){
+  boxplot(qc_values_part_log10_norm[,i] ~ qc_info_final$concentration, 
+          main = colnames(qc_values_part_log10_norm)[i])
+}
+dev.off()
+
+
+pdf("figures/qc_concentration_series/qc_boxplot_normalized_wo_blanks_log10.pdf")
+for (i in 1:156){
+  boxplot(qc_values_part_log10_norm_wo_blanks[,i] ~ round(log10(qc_info_wo_blanks$concentration_num),2), 
+          main = colnames(qc_values_part_log10_norm_wo_blanks)[i],
+          xlab = "log10(µl)", ylab = "log10 intensity")
+}
+dev.off()
+
+
+pdf("figures/qc_concentration_series/qc_scatterplot_log10conc_normalized_wo_blanks.pdf")
+for (i in 1:156){
+  plot(log10(qc_info_wo_blanks$concentration_num), 
+       qc_values_part_log10_norm_wo_blanks[,i], 
+       main = colnames(qc_values_part_log10_norm_wo_blanks)[i], 
+       pch=19, col = rgb(100,100,100,100, maxColorValue = 255), cex=1.5)
+}
+dev.off()
+
+```
+
+
+# ruv-2 normalization
+```{r ruv-2 normalization}
+dim(qc_values_part_log10)
+# 816 samples, 156 analytes
+sum(is.na(qc_values_part_log10))
+
+dim(qc_pareto_rnipals@completeObs)
+sum(is.na(qc_pareto_rnipals@completeObs))
+
+# ruv needs data without NA!
+
+ruv_k3 <- NormalizeRUVRand(Y = qc_pareto_rnipals@completeObs,
+                           ctl = alkan_boolean, k = 3)
+
+ruv_k3_norm <- ruv_k3$newY
+dim(ruv_k3_norm)
+sum(is.na(ruv_k3_norm))
+
+# PCA of ruv-normalized data
+# Scaling
+ruv_k3_norm_pareto <- prep(as.matrix(ruv_k3_norm), scale = "pareto", center = FALSE)
+
+# PCA
+ruv_k3_norm_pareto_rnipals <- pca(ruv_k3_norm_pareto, nPcs = 5, method="rnipals")
+round(ruv_k3_norm_pareto_rnipals@R2[1:5]*100,2)
+
+palette(heike_palette_7)
+pairs(ruv_k3_norm_pareto_rnipals@scores[,1:5], col=qc_info_final$concentration, pch=19, cex=1.5, main="concentration effect",
+      labels=c("PC1 (46.7%)", "PC2 9.9%)","PC3 (4.5%)","PC4 (3%)","PC5 (2.3%)"))
+
+# R2cum
+qc_log10_norm_pareto_rnipals@R2cum
+qc_log10_norm_pareto_rnipals@R2
+```
+
+
+
+# Save workspace and sessionInfo
+```{r save workspace}
+save.image("qc_concentration_series.RData")
+sessionInfo()
+```
+
+
