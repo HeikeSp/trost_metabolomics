@@ -42,6 +42,8 @@ source("../functions/func_load_functions_metabolite_data_analysis.R")
 
 # Paste file names with experiment_string
 ```{r paste file names with experiment_string, tidy=TRUE}
+file_analytes_table <- paste("data/", analytes_table, ".txt", sep = "")
+
 file_gmd_values <- paste("data/gmd_values_", experiment_string, ".txt", sep = "")
 file_gmd_meta <- paste("data/gmd_meta_", experiment_string, ".txt", sep = "")
 
@@ -59,15 +61,17 @@ file_gmd_values_select_log10_woOutlier <- paste("output/", experiment_string, "/
 this table comes from ``phenotyper_metadata.Rmd``
 ```{r load phenotyper results}
 phenotyper_result_joined <- read.table("data/phenotyper_result_joined_with_gmd_ids.txt", 
-                                       sep="\t", header=TRUE)
+                                       sep="\t", header = T)
 ```
 
 
 ## Load analytes table
 this table comes from ``gmd_analytes.Rmd``
 ```{r load analytes table}
-analytes_sel_exp_sort <- read.table("data/analytes_table_7exp_overlap_select_ordered.txt", 
-                                    sep="\t", header=TRUE, allowEscapes = T)
+analytes_sel_exp_sort <- read.table(file_analytes_table, sep ="\t", header = T, allowEscapes = T)
+
+# analytes_sel_exp_sort <- read.table("data/analytes_table_7exp_overlap_select_ordered.txt", 
+#                                    sep="\t", header=TRUE, allowEscapes = T)
 
 # analytes_sel_exp_sort <- read.table("data/analytes_7sel_exp_sort_new.txt", 
 #                                     sep="\t", header=TRUE, allowEscapes = T)
@@ -76,10 +80,10 @@ analytes_sel_exp_sort <- read.table("data/analytes_table_7exp_overlap_select_ord
 
 ## Load tables with GMD values and metadata
 ```{r load tables with GMD values and metadata}
-gmd_values <- read.table(file_gmd_values, sep="\t", header=TRUE, check.names=FALSE)
+gmd_values <- read.table(file_gmd_values, sep="\t", header = T, check.names = F)
 dim(gmd_values)
 
-gmd_meta <- read.table(file_gmd_meta, sep="\t", header=TRUE)
+gmd_meta <- read.table(file_gmd_meta, sep="\t", header = T)
 dim(gmd_meta)
 colnames(gmd_meta)
 ```
@@ -88,7 +92,11 @@ colnames(gmd_meta)
 # Define subset of selected chromatograms 
 ## PART: only biological samples -> without blanks, multimix, etc.
 ```{r subset of chromatograms}
+# select real biological samples
 gmd_values_part <- subset(gmd_values, rownames(gmd_values) %in% gmd_meta$chromatogram)
+# select only samples that refer to the wanted genotypes
+gmd_values_part <- subset(gmd_values_part, gmd_meta$genotype_name %in% genotype_names)
+
 print(dim(gmd_values_part))
 ```
 
@@ -146,13 +154,6 @@ dev.off()
 ```
 
 
-# Extract BatchID and SequenceID from GMD_id
-```{r BatchID and SequenceID}
-BatchID <- func_get_batch_ids(gmd_meta)
-SequenceID <- func_get_sequence_ids(gmd_meta)
-```
-
-
 # Relevel factors: treatment, genotype, sample_time and create factors table
 
 * only for experiments with four genotypes: ``func_relevel_factors`` and  ``func_create_tolerance_factor``
@@ -164,6 +165,10 @@ gmd_meta <- func_relevel_factors(trial_matrix = gmd_meta,
                                  genotype_levels_sorted = genotype_names_sorted,
                                  sample_time_levels = sample_time_names)
 
+# Extract BatchID and SequenceID from GMD_id
+BatchID <- func_get_batch_ids(gmd_meta)
+SequenceID <- func_get_sequence_ids(gmd_meta)
+
 # define tolerance factor (if there are four cultivars)
 tolerance <- func_create_tolerance_factor(gmd_meta)
 
@@ -171,7 +176,7 @@ tolerance <- func_create_tolerance_factor(gmd_meta)
 factors <- func_create_factors_table(gmd_meta, SequenceID, BatchID, tolerance)
 
 # genotypes are ordered by tolerance!
-levels(factors$genotype_name)
+levels(factors$genotype_class)
 
 # save factors table
 write.table(factors, 
