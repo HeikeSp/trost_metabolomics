@@ -16,13 +16,13 @@ shapiro_threshold = 1e-7
 
 # Set factors for metadata
 sample_time_names <- "late"
-cultivar_names <- names_cultivars_34 # from names.R
-cultivar_names_sorted <- names_cultivars_34 # from names.R
+genotype_names <- names_cultivars_34 # from names.R
+genotype_names_sorted <- names_cultivars_34 # from names.R
 
 # Set factors used for normalization
-all_factors_variable = c("cultivar", "treatment", "SequenceID", "BatchID", "log10_AvgAnnotated")
-keep_factors_variable = c("cultivar", "treatment")
-IA_factors_variable = c("cultivar","treatment")
+all_factors_variable = c("genotype_name", "treatment", "SequenceID", "BatchID", "log10_AvgAnnotated")
+keep_factors_variable = c("genotype_name", "treatment")
+IA_factors_variable = c("genotype_name","treatment")
 
 # Settings for aggregation
 do_agg_late_before_samples = 0

@@ -16,8 +16,8 @@ shapiro_threshold = 1e-7
 
 # Set factors for metadata
 sample_time_names <- "late"
-cultivar_names <- names_cultivars_34 # from names.R
-cultivar_names_sorted <- names_cultivars_34 # from names.R
+genotype_names <- names_cultivars_34 # from names.R
+genotype_names_sorted <- names_cultivars_34 # from names.R
 
 # Set factors used for normalization
 all_factors_variable = c("cultivar", "treatment", "SequenceID", "BatchID", "log10_AvgAnnotated")
