@@ -137,7 +137,7 @@ length(gmd_analytes_overlap_7)
 # for all trost/valdis experiments
 gmd_analytes <- func_get_all_gmd_analytes()
 dim(gmd_analytes)
-# 563 analytes
+# 566 analytes
 pander(head(gmd_analytes))
 ```
 
@@ -206,6 +206,8 @@ inventory_list_part$select[analytes_to_remove] <- "remove"
 ```{r join gmd_analytes table and inventory list}
 gmd_analytes_inventory <- merge(gmd_analytes, inventory_list_part, 
                                 by.x = "analyteID", by.y = "MPIMP_ID_Analyte")
+
+dim(gmd_analytes_inventory)
 ```
 
 
@@ -284,9 +286,9 @@ dim(analytes_table_6_overlap_select)
 dim(analytes_table_7_overlap_select)
 # 107 22
 dim(analytes_table_17_overlap_select)
-# 84 32
+# 81 32
 dim(analytes_table_20_overlap_select)
-# 76 35
+# 74 35
 ```
 
 
@@ -315,7 +317,7 @@ write.table(analytes_table_17_overlap_select_ordered, "data/analytes_table_17exp
             sep="\t", row.names = F)
 write.table(analytes_table_20_overlap_select_ordered, "data/analytes_table_20exp_overlap_select_ordered.txt", 
             sep="\t", row.names = F)
-```
+s```
 
 
 ### Which analytes have long names
