@@ -9,6 +9,9 @@ source("../functions/colors.R")
 # Set experiment string for file names
 experiment_string <- "jki_test_2"
 
+# which selection of analytes should be used
+analytes_table <- "analytes_table_7exp_overlap_select_ordered"
+
 # Set threshold values for outlier detection, coefficient of variation (cv), shapiro test
 outlier_threshold = 1e-4
 cv_value_threshold = 0.25
@@ -31,7 +34,7 @@ do_agg_late_before_samples = 0
 names_func_boxplot_2fac <- names_treatment_sample_time_2
 
 # Colors for Plots
-cols_cultivar_factor <- cols_cultivar_check
+cols_genotype_factor <- cols_cultivar_check
 cols_sample_time_factor <- cols_sample_time
 
 # Sample names corresponding to RNASeq data

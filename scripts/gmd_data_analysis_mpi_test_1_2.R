@@ -9,6 +9,9 @@ source("../functions/colors.R")
 # Set experiment string for file names
 experiment_string <- "mpi_test_1_2"
 
+# which selection of analytes should be used
+analytes_table <- "analytes_table_7exp_overlap_select_ordered"
+
 # Set threshold values for outlier detection, coefficient of variation (cv), shapiro test
 outlier_threshold = 1e-5
 cv_value_threshold = 0.25
