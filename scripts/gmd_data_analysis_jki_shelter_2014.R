@@ -34,7 +34,8 @@ do_agg_late_before_samples = 0
 names_func_boxplot_2fac <- names_treatment_sample_time
 
 # Colors for Plots
-cols_cultivar_factor <- cols_lines_2014
+cols_genotype_factor <- cols_crossing
+cols_genotype_name_factor <- cols_lines_2014
 cols_sample_time_factor <- cols_sample_time2
 
 # Sample names corresponding to RNASeq data
