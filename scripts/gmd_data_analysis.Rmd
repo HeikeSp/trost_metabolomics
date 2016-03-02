@@ -471,31 +471,31 @@ write.table(res_anova_adj, paste("output/", experiment_string, "/res_anova_adj.t
 
 # Boxplots of normalized values per analyte using 1 factor
 ```{r boxplots of normalized values per analyte using 1 factor}
-pdf(paste("figures/", experiment_string, "/boxplot_treatment.pdf", sep="") )
+pdf(paste("figures/", experiment_string, "/boxplot_treatment.pdf", sep=""), width = 6, height = 6)
 func_boxplot_1fac(values_norm_log10_woNA_woOutlier, factors, "treatment", res_anova_adj, cols_treatment, analytes_sel_exp_sort$Name)
 dev.off()
 
 
 if(length(levels(factors$sample_time)) > 1){
-  pdf(paste("figures/", experiment_string, "/boxplot_sample_time.pdf", sep="") )
+  pdf(paste("figures/", experiment_string, "/boxplot_sample_time.pdf", sep=""), width = 6, height = 6)
   func_boxplot_1fac(values_norm_log10_woNA_woOutlier, factors, "sample_time", res_anova_adj, cols_sample_time_factor, analytes_sel_exp_sort$Name)
   dev.off()
   }
 
-pdf(paste("figures/", experiment_string, "/boxplot_genotype.pdf", sep="") )
+pdf(paste("figures/", experiment_string, "/boxplot_genotype.pdf", sep=""), width = 7, height = 6)
 func_boxplot_1fac(values_norm_log10_woNA_woOutlier, factors, "genotype_class", res_anova_adj, cols_genotype_factor, analytes_sel_exp_sort$Name)
 dev.off()
 
+
 # these boxplots are specific for VALDIS experiments with many individual genotypes
 if(length(levels(factors$genotype_name)) > 34){
-  pdf(paste("figures/", experiment_string, "/boxplot_genotype_name.pdf", sep="") , width = 20, height = 10)
+  pdf(paste("figures/", experiment_string, "/boxplot_genotype_name.pdf", sep="") , width = 15, height = 8)
   func_boxplot_1fac(values_norm_log10_woNA_woOutlier, factors, "genotype_name", 
                     res_anova_adj = func_anova_2fac(values_norm_log10_woNA_woOutlier, 
                                                     factors, "treatment", "genotype_name", 
                                                     0.01, analytes_sel_exp_sort$Name), 
                     cols_genotype_name_factor, analytes_sel_exp_sort$Name)
   dev.off()
-
 }
 ```
 
@@ -582,6 +582,22 @@ if(do_agg_late_before_samples == 1)
   
 } else { print("aggregate only late/before samples NOT executed") }
 ```
+
+
+# Create Correlation Matrix (Metabolite-Metabolite-Correlation)
+```{r create correlation matrix}
+corr_res <- corr.test(values_norm_log10_woNA_woOutlier)
+colnames(corr_res$r) <- rownames(corr_res$r) <- analytes_sel_exp_sort$Name
+colnames(corr_res$p) <- rownames(corr_res$p) <- analytes_sel_exp_sort$Name
+
+pdf(paste("figures/", experiment_string, "/corr_plot.pdf", sep=""), width = 10, height = 10)
+corrplot(corr_res$r, method= "color", order = "hclust", tl.col = "black", tl.cex = 0.7, 
+         mar = c(1,0.5,2,0.5), title = "all values")
+corrplot(corr_res$r, method= "color", order = "hclust", tl.col = "black", tl.cex = 0.7, 
+         mar = c(1,0.5,2,0.5), p.mat = corr_res$p, insig = "blank", title = "only significant")
+dev.off()
+```
+
 
 
 # Save workspace
