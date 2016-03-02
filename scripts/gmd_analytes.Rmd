@@ -152,13 +152,13 @@ dim(inventory_list_part)
 # 3706 12
 
 # use DT library to show a formatted table
-datatable(inventory_list_part) %>%
-  formatStyle(
-    'Class',
-    backgroundColor = styleEqual(
-      c("Reagent (Contamination)", "Internal Standard (Retention Time)"), c('red','orange')
-    )
-  )
+# datatable(inventory_list_part) %>%
+#   formatStyle(
+#     'Class',
+#     backgroundColor = styleEqual(
+#       c("Reagent (Contamination)", "Internal Standard (Retention Time)"), c('red','orange')
+#     )
+#   )
 
 length(intersect(gmd_analytes$analyteID, inventory_list[,1]))
 length(intersect(gmd_analytes_overlap_6, inventory_list[,1]))
@@ -317,7 +317,7 @@ write.table(analytes_table_17_overlap_select_ordered, "data/analytes_table_17exp
             sep="\t", row.names = F)
 write.table(analytes_table_20_overlap_select_ordered, "data/analytes_table_20exp_overlap_select_ordered.txt", 
             sep="\t", row.names = F)
-s```
+```
 
 
 ### Which analytes have long names
