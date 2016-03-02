@@ -94,9 +94,10 @@ colnames(gmd_meta)
 ```{r subset of chromatograms}
 # select real biological samples
 gmd_values_part <- subset(gmd_values, rownames(gmd_values) %in% gmd_meta$chromatogram)
-# select only samples that refer to the wanted genotypes
-gmd_values_part <- subset(gmd_values_part, gmd_meta$genotype_name %in% genotype_names)
-
+# select only samples that refer to the wanted genotypes for VALDIS
+if(length(levels(gmd_meta$genotype_name)) > 34){
+  gmd_values_part <- subset(gmd_values_part, gmd_meta$genotype_name %in% genotype_names)
+}
 print(dim(gmd_values_part))
 ```
 
@@ -194,13 +195,13 @@ write.table(factors,
 
 ```{r normalize values IIIc, warning=FALSE}
 # matrix WITH NAs, after log10
-values_norm_log10 <- func_normalize(gmd_values_select_log10, 
-                                    trial_factors = factors,
-                                    facs = all_factors_variable,
-                                    keep = keep_factors_variable)
-write.table(values_norm_log10, 
-            paste("output/", experiment_string, "/values_norm_log10.txt", sep=""), 
-            sep="\t")
+# values_norm_log10 <- func_normalize(gmd_values_select_log10, 
+#                                     trial_factors = factors,
+#                                     facs = all_factors_variable,
+#                                     keep = keep_factors_variable)
+# write.table(values_norm_log10, 
+#             paste("output/", experiment_string, "/values_norm_log10.txt", sep=""), 
+#             sep="\t")
 
 # matrix WITHOUT NAs, after log10
 values_norm_log10_woNA <- func_normalize(gmd_values_select_log10_woNA,
@@ -222,28 +223,28 @@ write.table(values_norm_log10_woNA,
 
 ```{r outlier detection and replacement}
 pdf( paste("figures/", experiment_string, "/outlier_hist.pdf", sep="") )
-func_hist_outlier(values_norm_log10, threshold = outlier_threshold)
+func_hist_outlier(values_norm_log10_woNA, threshold = outlier_threshold)
 dev.off()
 
 # replace outlier by NA
-# use already normalized matrix --> values_norm_log10
-values_norm_log10_woOutlier <- func_replace_outlier(values_norm_log10, 
+# use already normalized matrix --> values_norm_log10_woNA
+values_norm_log10_woNA_woOutlier <- func_replace_outlier(values_norm_log10_woNA, 
                                                     threshold = outlier_threshold, 
                                                     original_values = gmd_values_select_log10, 
                                                     output = "normalized")
 
 # use original matrix before normalization --> gmd_values_select_log10
-gmd_values_select_log10_woOutlier <- func_replace_outlier(values_norm_log10, 
+gmd_values_select_log10_woOutlier <- func_replace_outlier(values_norm_log10_woNA, 
                                                           threshold = outlier_threshold, 
                                                           original_values = gmd_values_select_log10, 
                                                           output = "original")
 # before
-sum(is.na(values_norm_log10))
+sum(is.na(values_norm_log10_woNA))
 # after
-sum(is.na(values_norm_log10_woOutlier)) 
+sum(is.na(values_norm_log10_woNA_woOutlier)) 
 sum(is.na(gmd_values_select_log10_woOutlier)) 
 
-write.table(values_norm_log10_woOutlier, file_values_norm_log10_woOutlier, sep = "\t")
+write.table(values_norm_log10_woNA_woOutlier, file_values_norm_log10_woOutlier, sep = "\t")
 write.table(gmd_values_select_log10_woOutlier, file_gmd_values_select_log10_woOutlier, sep = "\t")
 ```
 
@@ -252,7 +253,7 @@ write.table(gmd_values_select_log10_woOutlier, file_gmd_values_select_log10_woOu
 ```{r calculate CV}
 # calculate cv values
 # INPUT: already normalized values (containing NAs)!
-cv_values <- func_calculate_cv(values_norm_log10_woOutlier, factors, 
+cv_values <- func_calculate_cv(values_norm_log10_woNA_woOutlier, factors, 
                                all_factors = all_factors_variable,
                                keep_factors = keep_factors_variable,
                                IA_factors = IA_factors_variable)
@@ -271,53 +272,53 @@ dev.off()
 ```{r check normal distribution}
 # plot histograms of normalized values per analyte
 pdf( paste("figures/", experiment_string, "/values_norm_log10_hist.pdf", sep="") )
-func_plot_dist(values_norm_log10_woOutlier)
+func_plot_dist(values_norm_log10_woNA_woOutlier)
 dev.off()
 
 # shapiro test for normal distribution per analyte
-res_shapiro <- func_shapiro_test(values_norm_log10_woOutlier, shapiro_threshold)
+res_shapiro <- func_shapiro_test(values_norm_log10_woNA_woOutlier, shapiro_threshold)
 ```
 
 
 # Aggregate normalized log10 values
 ```{r aggregate normalized log10 values}
-# for matrix with NAs
-values_norm_log10_mean <- func_agg_3fac(values_norm_log10_woOutlier, factors, 
+# for matrix without NAs
+values_norm_log10_mean <- func_agg_3fac(values_norm_log10_woNA_woOutlier, factors, 
                                         "treatment", "sample_time", "genotype_name", 
                                         mean, analytes_sel_exp_sort)
-values_norm_log10_median <- func_agg_3fac(values_norm_log10_woOutlier, factors, 
+values_norm_log10_median <- func_agg_3fac(values_norm_log10_woNA_woOutlier, factors, 
                                           "treatment", "sample_time", "genotype_name", 
                                           median, analytes_sel_exp_sort)
 dim(values_norm_log10_median)
 
 
 # for matrix without NAs
-values_norm_log10_woNA_mean <- func_agg_3fac(values_norm_log10_woNA, factors, 
-                                             "treatment", "sample_time", "genotype_name", 
-                                             mean, analytes_sel_exp_sort)
-values_norm_log10_woNA_median <- func_agg_3fac(values_norm_log10_woNA, factors, 
-                                               "treatment", "sample_time", "genotype_name", 
-                                               median, analytes_sel_exp_sort)
+# values_norm_log10_woNA_mean <- func_agg_3fac(values_norm_log10_woNA, factors, 
+#                                              "treatment", "sample_time", "genotype_name", 
+#                                              mean, analytes_sel_exp_sort)
+# values_norm_log10_woNA_median <- func_agg_3fac(values_norm_log10_woNA, factors, 
+#                                                "treatment", "sample_time", "genotype_name", 
+#                                                median, analytes_sel_exp_sort)
 
 write.table(values_norm_log10_mean, paste("output/", experiment_string, "/values_norm_log10_mean.txt", sep=""), sep="\t")
 write.table(values_norm_log10_median, paste("output/", experiment_string, "/values_norm_log10_median.txt", sep=""), sep="\t")
-write.table(values_norm_log10_woNA_mean, paste("output/", experiment_string, "/values_norm_log10_woNA_mean.txt", sep=""), sep="\t")
-write.table(values_norm_log10_woNA_median, paste("output/", experiment_string, "/values_norm_log10_woNA_median.txt", sep=""), sep="\t")
+# write.table(values_norm_log10_woNA_mean, paste("output/", experiment_string, "/values_norm_log10_woNA_mean.txt", sep=""), sep="\t")
+# write.table(values_norm_log10_woNA_median, paste("output/", experiment_string, "/values_norm_log10_woNA_median.txt", sep=""), sep="\t")
 ```
 
 
 # Compare influence of different scaling methods for one dataset on PCA results
 ```{r compare scaling methods}
-pca_norm_log10_pareto_rnipals <- func_prep_pca(values_norm_log10_woOutlier, scale_method = "pareto", center_option = FALSE, 
+pca_norm_log10_pareto_rnipals <- func_prep_pca(values_norm_log10_woNA_woOutlier, scale_method = "pareto", center_option = FALSE, 
                                              pc_number = 5, pca_method = "rnipals")
 
-pca_norm_log10_uv_rnipals <- func_prep_pca(values_norm_log10_woOutlier, scale_method = "uv", center_option = FALSE, 
+pca_norm_log10_uv_rnipals <- func_prep_pca(values_norm_log10_woNA_woOutlier, scale_method = "uv", center_option = FALSE, 
                                              pc_number = 5, pca_method = "rnipals")
 
-pca_norm_log10_vector_rnipals <- func_prep_pca(values_norm_log10_woOutlier, scale_method = "vector", center_option = FALSE, 
+pca_norm_log10_vector_rnipals <- func_prep_pca(values_norm_log10_woNA_woOutlier, scale_method = "vector", center_option = FALSE, 
                                              pc_number = 5, pca_method = "rnipals")
 
-pca_norm_log10_none_rnipals <- func_prep_pca(values_norm_log10_woOutlier, scale_method = "none", center_option = FALSE, 
+pca_norm_log10_none_rnipals <- func_prep_pca(values_norm_log10_woNA_woOutlier, scale_method = "none", center_option = FALSE, 
                                              pc_number = 5, pca_method = "rnipals")
 
 
@@ -330,9 +331,9 @@ pca_norm_log10_woNA_pareto_rnipals <- func_prep_pca(values_norm_log10_woNA, scal
 # compare PCA of matrix with/without NAs
 palette(cols_genotype_factor)
 pairs(pca_norm_log10_pareto_rnipals@scores[,1:5], 
-      col=factors$genotype_name, pch=19, main="pareto scaling")
+      col=factors$genotype_class, pch=19, main="pareto scaling")
 pairs(pca_norm_log10_woNA_pareto_rnipals@scores[,1:5], 
-      col=factors$genotype_name, pch=19, main="pareto scaling")
+      col=factors$genotype_class, pch=19, main="pareto scaling")
 ```
 
 
@@ -340,10 +341,10 @@ pairs(pca_norm_log10_woNA_pareto_rnipals@scores[,1:5],
 ```{r compare scaling methods: pca plots}
 pdf(paste("figures/", experiment_string, "/PCA_scoresplots_scaling_effect.pdf", sep="") )
 palette(cols_genotype_factor)
-pairs(pca_norm_log10_pareto_rnipals@scores[,1:5], col=factors$genotype_name, pch=19, main="pareto scaling")
-pairs(pca_norm_log10_uv_rnipals@scores[,1:5], col=factors$genotype_name, pch=19, main="unit variance scaling")
-pairs(pca_norm_log10_vector_rnipals@scores[,1:5], col=factors$genotype_name, pch=19, main="vector scaling")
-pairs(pca_norm_log10_none_rnipals@scores[,1:5], col=factors$genotype_name, pch=19, main="no scaling")
+pairs(pca_norm_log10_pareto_rnipals@scores[,1:5], col=factors$genotype_class, pch=19, main="pareto scaling")
+pairs(pca_norm_log10_uv_rnipals@scores[,1:5], col=factors$genotype_class, pch=19, main="unit variance scaling")
+pairs(pca_norm_log10_vector_rnipals@scores[,1:5], col=factors$genotype_class, pch=19, main="vector scaling")
+pairs(pca_norm_log10_none_rnipals@scores[,1:5], col=factors$genotype_class, pch=19, main="no scaling")
 
 palette(cols_treatment)
 pairs(pca_norm_log10_pareto_rnipals@scores[,1:5], col=factors$treatment, pch=19, main="pareto scaling")
@@ -362,19 +363,19 @@ dev.off()
 
 # Compare influence of different PCA methods for one dataset on PCA results
 ```{r compare pca methods}
-pca_norm_log10_none_rnipals <- func_prep_pca(values_norm_log10_woOutlier, 
+pca_norm_log10_none_rnipals <- func_prep_pca(values_norm_log10_woNA_woOutlier, 
                                              scale_method = "none", center_option = FALSE, 
                                              pc_number = 5, pca_method = "rnipals")
 
-pca_norm_log10_none_bpca <- func_prep_pca(values_norm_log10_woOutlier, 
+pca_norm_log10_none_bpca <- func_prep_pca(values_norm_log10_woNA_woOutlier, 
                                           scale_method = "none", center_option = FALSE, 
                                           pc_number = 5, pca_method = "bpca")
 
-pca_norm_log10_none_ppca <- func_prep_pca(values_norm_log10_woOutlier, 
+pca_norm_log10_none_ppca <- func_prep_pca(values_norm_log10_woNA_woOutlier, 
                                           scale_method = "none", center_option = FALSE, 
                                           pc_number = 5, pca_method = "ppca")
 
-pca_norm_log10_none_svdimpute <- func_prep_pca(values_norm_log10_woOutlier, 
+pca_norm_log10_none_svdimpute <- func_prep_pca(values_norm_log10_woNA_woOutlier, 
                                                scale_method = "none", center_option = FALSE, 
                                                pc_number = 5, pca_method = "svdImpute")
 ```
@@ -384,10 +385,10 @@ pca_norm_log10_none_svdimpute <- func_prep_pca(values_norm_log10_woOutlier,
 ```{r compare pca methods: pca plots}
 pdf(paste("figures/", experiment_string, "/PCA_scoresplots_pca_methods_effect.pdf", sep="") )
 palette(cols_genotype_factor)
-pairs(pca_norm_log10_none_rnipals@scores[,1:5], col=factors$genotype_name, pch=19, main="rnipals")
-pairs(pca_norm_log10_none_bpca@scores[,1:5], col=factors$genotype_name, pch=19, main="bpca")
-pairs(pca_norm_log10_none_ppca@scores[,1:5], col=factors$genotype_name, pch=19, main="ppca")
-pairs(pca_norm_log10_none_svdimpute@scores[,1:5], col=factors$genotype_name, pch=19, main="svdImpute")
+pairs(pca_norm_log10_none_rnipals@scores[,1:5], col=factors$genotype_class, pch=19, main="rnipals")
+pairs(pca_norm_log10_none_bpca@scores[,1:5], col=factors$genotype_class, pch=19, main="bpca")
+pairs(pca_norm_log10_none_ppca@scores[,1:5], col=factors$genotype_class, pch=19, main="ppca")
+pairs(pca_norm_log10_none_svdimpute@scores[,1:5], col=factors$genotype_class, pch=19, main="svdImpute")
 
 palette(cols_treatment)
 pairs(pca_norm_log10_none_rnipals@scores[,1:5], col=factors$treatment, pch=19, main="rnipals")
@@ -413,18 +414,18 @@ palette(cols_genotype_factor)
 par(mfrow=c(1,2))
 plot(pca_norm_log10_pareto_rnipals@scores[,1], pca_norm_log10_pareto_rnipals@scores[,3], 
      cex=1.5, main="ANOVA normalization(IIIc), log10 values",
-     col=factors$genotype_name, 
+     col=factors$genotype_class, 
      pch=c(16,17)[as.numeric(factors$treatment)], 
      xlab="PC1", ylab="PC3")
 
 
 plot(pca_norm_log10_woNA_pareto_rnipals@scores[,1], pca_norm_log10_woNA_pareto_rnipals@scores[,3], 
      cex=1.5, main="ANOVA normalization(IIIc), log10 values wo NA",
-     col=factors$genotype_name, 
+     col=factors$genotype_class, 
      pch=c(16,17)[as.numeric(factors$treatment)], 
      xlab="PC1", ylab="PC3")
 
-legend("topright", levels(factors$genotype_name), fill=cols_genotype_factor, cex=0.8)
+legend("topright", levels(factors$genotype_class), fill=cols_genotype_factor, cex=0.8)
 legend("bottomright", levels(factors$treatment), pch=factors$treatment, cex=0.8)
 
 # colour: sample time
@@ -459,9 +460,9 @@ par(mfrow=c(1,1))
 # else (sample_time has more levels), do ANOVA for 3 factors: treatment, genotype, sample_time
 
 if(length(levels(factors$sample_time))==1){
-  res_anova_adj <- func_anova_2fac(values_norm_log10_woOutlier, factors, "treatment", "genotype_name", 0.01, analytes_sel_exp_sort$Name)
+  res_anova_adj <- func_anova_2fac(values_norm_log10_woNA_woOutlier, factors, "treatment", "genotype_class", 0.01, analytes_sel_exp_sort$Name)
   } else {
-  res_anova_adj <- func_anova_3fac(values_norm_log10_woOutlier, factors, "treatment", "genotype_name", "sample_time", 0.01, analytes_sel_exp_sort$Name)
+  res_anova_adj <- func_anova_3fac(values_norm_log10_woNA_woOutlier, factors, "treatment", "genotype_class", "sample_time", 0.01, analytes_sel_exp_sort$Name)
   }
 
 write.table(res_anova_adj, paste("output/", experiment_string, "/res_anova_adj.txt", sep=""), sep="\t")
@@ -471,26 +472,38 @@ write.table(res_anova_adj, paste("output/", experiment_string, "/res_anova_adj.t
 # Boxplots of normalized values per analyte using 1 factor
 ```{r boxplots of normalized values per analyte using 1 factor}
 pdf(paste("figures/", experiment_string, "/boxplot_treatment.pdf", sep="") )
-func_boxplot_1fac(values_norm_log10_woOutlier, factors, "treatment", res_anova_adj, cols_treatment, analytes_sel_exp_sort$Name)
+func_boxplot_1fac(values_norm_log10_woNA_woOutlier, factors, "treatment", res_anova_adj, cols_treatment, analytes_sel_exp_sort$Name)
 dev.off()
 
 
 if(length(levels(factors$sample_time)) > 1){
   pdf(paste("figures/", experiment_string, "/boxplot_sample_time.pdf", sep="") )
-  func_boxplot_1fac(values_norm_log10_woOutlier, factors, "sample_time", res_anova_adj, cols_sample_time_factor, analytes_sel_exp_sort$Name)
+  func_boxplot_1fac(values_norm_log10_woNA_woOutlier, factors, "sample_time", res_anova_adj, cols_sample_time_factor, analytes_sel_exp_sort$Name)
   dev.off()
   }
 
 pdf(paste("figures/", experiment_string, "/boxplot_genotype.pdf", sep="") )
-func_boxplot_1fac(values_norm_log10_woOutlier, factors, "genotype_name", res_anova_adj, cols_genotype_factor, analytes_sel_exp_sort$Name)
+func_boxplot_1fac(values_norm_log10_woNA_woOutlier, factors, "genotype_class", res_anova_adj, cols_genotype_factor, analytes_sel_exp_sort$Name)
 dev.off()
+
+# these boxplots are specific for VALDIS experiments with many individual genotypes
+if(length(levels(factors$genotype_name)) > 34){
+  pdf(paste("figures/", experiment_string, "/boxplot_genotype_name.pdf", sep="") , width = 20, height = 10)
+  func_boxplot_1fac(values_norm_log10_woNA_woOutlier, factors, "genotype_name", 
+                    res_anova_adj = func_anova_2fac(values_norm_log10_woNA_woOutlier, 
+                                                    factors, "treatment", "genotype_name", 
+                                                    0.01, analytes_sel_exp_sort$Name), 
+                    cols_genotype_name_factor, analytes_sel_exp_sort$Name)
+  dev.off()
+
+}
 ```
 
 
 # ANOVA for 2 factors: treatment and sample time + interaction
 ```{r ANOVA with 2 factors (with interaction)}
 if(length(levels(factors$sample_time)) > 1){
-  res_anova2_adj <- func_anova_2fac_ia(values_norm_log10_woOutlier, factors, "treatment", "sample_time", 0.01, analytes_sel_exp_sort$Name)
+  res_anova2_adj <- func_anova_2fac_ia(values_norm_log10_woNA_woOutlier, factors, "treatment", "sample_time", 0.01, analytes_sel_exp_sort$Name)
   
   write.table(res_anova2_adj, paste("output/", experiment_string, "/res_anova2_adj.txt", sep=""), sep="\t")
 }
@@ -504,7 +517,7 @@ if(length(levels(factors$sample_time)) > 1){
   
 pdf(paste("figures/", experiment_string, "/boxplot_treatment_sample_time.pdf", sep="") )
 par(mar=c(7, 4.1, 7, 2.1))
-func_boxplot_2fac(normalized_values = values_norm_log10_woOutlier, 
+func_boxplot_2fac(normalized_values = values_norm_log10_woNA_woOutlier, 
                   trial_factors = factors, 
                   factor1 = "treatment", 
                   factor2 = "sample_time", 
@@ -523,7 +536,7 @@ dev.off()
 ```{r only late/before samples}
 
 if(do_agg_late_before_samples == 1) {
-  values_norm_log10_late_before <- subset(values_norm_log10_woOutlier, factors$sample_time=="late/before")
+  values_norm_log10_late_before <- subset(values_norm_log10_woNA_woOutlier, factors$sample_time=="late/before")
   dim(values_norm_log10_late_before)
       
   factors_late_before <- subset(factors, factors$sample_time=="late/before")
