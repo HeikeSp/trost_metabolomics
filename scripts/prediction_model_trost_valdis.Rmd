@@ -1,0 +1,266 @@
+---
+title: Prediction model with TROST and VALDIS data
+author: "Heike Sprenger"
+date: "March 6, 2016"
+output:
+  html_document:
+    highlight: tango
+    number_section: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 4
+---
+
+# Set pander and knitr options
+```{r set pander and knitr options, message=FALSE}
+library(knitr)
+library(pander)
+
+# set options for pander
+panderOptions('table.split.table', 200)
+
+# set options for knitr
+opts_chunk$set(fig.width=5, fig.height=5, cache=FALSE, highlight = TRUE, fig.show="asis")
+opts_knit$set(root.dir = '../')
+```
+
+
+# Load packages and functions for metabolite data analysis
+```{r load packages and functions for metabolite data analysis, message=FALSE, fig.show='hide'}
+# load packages
+source("../functions/func_load_packages_metabolite_data_analysis.R")
+
+# load functions
+source("../functions/func_load_functions_metabolite_data_analysis.R")
+```
+
+
+# Paste file names with experiment_string
+```{r paste file names with experiment_string, tidy=TRUE}
+file_analytes_table <- paste("data/", analytes_table, ".txt", sep = "")
+ 
+# file_gmd_values_select <- paste("output/", experiment_string, "/gmd_values_select.txt", sep = "")
+# file_gmd_values_select_log10 <- paste("output/", experiment_string, "/gmd_values_select_log10.txt", sep = "")
+# file_gmd_values_select_log10_woNA <- paste("output/", experiment_string, "/gmd_values_select_log10_woNA.txt", sep = "")
+# 
+# file_values_norm_log10_woOutlier <- paste("output/", experiment_string, "/values_norm_log10_woOutlier.txt", sep = "")
+# file_gmd_values_select_log10_woOutlier <- paste("output/", experiment_string, "/gmd_values_select_log10_woOutlier.txt", sep = "")
+```
+
+
+# Set up database connection to GMD
+```{r set up database connection to GMD}
+login_gmd <- yaml.load_file("../functions/login_gmd.yaml")
+
+if (.Platform$OS.type == 'windows'){
+  dbhandle <- odbcDriverConnect('driver={SQL Server}; 
+                                server=r710sqljahu; 
+                                database=GMD; 
+                                trusted_connection=true')
+} else { # if .Platform$OS.type == 'unix'
+  dbhandle <- odbcDriverConnect(
+    connection=paste0("server=",login_gmd$host,
+                      ";database=",login_gmd$db,
+                      ";uid=",login_gmd$user,
+                      ";pwd=",login_gmd$passwd,
+                      ";Port=1433;driver=FreeTDS;TDS_Version=8.0;"))
+}
+```
+
+
+# Load data
+## Load phenotyper results
+this table comes from ``phenotyper_metadata.Rmd``
+```{r load phenotyper results}
+phenotyper_result_joined <- read.table("data/phenotyper_result_joined_with_gmd_ids.txt", 
+                                       sep="\t", header = T)
+```
+
+
+## Load analytes table
+this table comes from ``gmd_analytes.Rmd``
+```{r load analytes table}
+analytes_sel_exp_sort <- read.table(file_analytes_table, sep ="\t", header = T, allowEscapes = T)
+```
+
+
+## Load `trost_TagList`
+`trost_TagList` shows all experiments that belong to the TROST/VALDIS project and comes from `gmd_first_steps.Rmd`
+
+```{r}
+trost_TagList <- read.table("data/trost_TagList.txt", sep="\t", header=TRUE)
+
+trost_gmd_ids <- read.table("data/trost_gmd_ids.txt", sep="\t", header=TRUE)
+head(trost_gmd_ids)
+```
+
+
+## Load tables with GMD metadata
+```{r load tables with GMD metadata}
+# TROST
+gmd_meta_mpi_field_2011 <- read.table("data/gmd_meta_mpi_field_2011.txt", sep = "\t", header = T)
+gmd_meta_mpi_field_2012 <- read.table("data/gmd_meta_mpi_field_2012.txt", sep = "\t", header = T)
+gmd_meta_jki_field_2012 <- read.table("data/gmd_meta_jki_field_2012.txt", sep = "\t", header = T)
+gmd_meta_dethlingen_2011 <- read.table("data/gmd_meta_dethlingen_2011.txt", sep = "\t", header = T)
+gmd_meta_jki_field_2013 <- read.table("../../TROST/GC-MS/GMD_Phenotyper/data/gmd_meta_jki_field_2013.txt", 
+                                      sep = "\t", header = T)
+gmd_meta_breeder_trials <- read.table("../../TROST/GC-MS/GMD_Phenotyper/data/gmd_meta_breeder_trials.txt", 
+                                      sep = "\t", header = T)
+
+colnames(gmd_meta_jki_field_2013) <- colnames(gmd_meta_breeder_trials) <- colnames(gmd_meta_jki_field_2012)
+
+# VALDIS
+gmd_meta_jki_shelter_2014 <- read.table("data/gmd_meta_jki_shelter_2014.txt", sep = "\t", header = T)
+gmd_meta_jki_shelter_2015 <- read.table("data/gmd_meta_jki_shelter_2015.txt", sep = "\t", header = T)
+gmd_meta_mpi_fgh_2014 <- read.table("data/gmd_meta_mpi_fgh_2014.txt", sep = "\t", header = T)
+gmd_meta_mpi_fgh_2015 <- read.table("data/gmd_meta_mpi_fgh_2015.txt", sep = "\t", header = T)
+gmd_meta_mpi_field_2015 <- read.table("data/gmd_meta_mpi_field_2015.txt", sep="\t", header = T)
+
+#####################################
+
+# exp_idx <- which(trost_TagList$experiment %in% experiment_names)
+# trost_TagList_model <- droplevels(trost_TagList[exp_idx,])
+# gmd_meta_per_exp_list <- vector("list", nrow(trost_TagList_model))
+# for (i in trost_TagList_model$id){
+#   gmd_meta_per_exp_list[[i]] <- func_get_gmd_metadata_3(i)
+#   }
+# gmd_meta_per_exp <- do.call(rbind, gmd_meta_per_exp_list)
+# dim(gmd_meta_per_exp)
+```
+
+
+## Bind GMD metadata
+```{r bind GMD metadata}
+gmd_meta <- rbind(gmd_meta_mpi_field_2011, gmd_meta_mpi_field_2012, 
+                  gmd_meta_jki_field_2012, gmd_meta_jki_field_2013,
+                  gmd_meta_dethlingen_2011, gmd_meta_breeder_trials,
+                  gmd_meta_jki_shelter_2014, gmd_meta_jki_shelter_2015,
+                  gmd_meta_mpi_fgh_2014, gmd_meta_mpi_fgh_2015, gmd_meta_mpi_field_2015)
+
+# change treatment
+levels(gmd_meta$treatment)[4] <- levels(gmd_meta$treatment)[1] 
+
+# change genotype names for cultivars
+levels(gmd_meta$genotype_name)[1:34] <- names_cultivars_34
+
+# use only control and stress treatments
+gmd_meta_model <- droplevels(subset(gmd_meta, gmd_meta$treatment %in% c("Kontrolle", "Trockenstress")))
+levels(gmd_meta_model$treatment) <- c("control", "drought stress")
+
+# use only relevant genotypes (34 cultivars and 193 lines from 2014)
+genotypes_model <- union(names_cultivars_34, names_lines_2014)
+gmd_meta_model <- droplevels(subset(gmd_meta_model, gmd_meta_model$genotype_name %in% genotypes_model))
+
+# use only late samples
+gmd_meta_model <- droplevels(subset(gmd_meta_model, gmd_meta_model$sample_time == "late"))
+dim(gmd_meta_model)
+```
+
+
+## Trial names
+```{r trial names}
+year <- rep("breeder_2011", nrow(gmd_meta_breeder_trials))
+year[which(gmd_meta_breeder_trials$experiment_id %in% c("56876", "56878", "56879", 
+                                                        "56880", "56881", "56882", 
+                                                        "56883", "56884"))] = "breeder_2012"
+year <- as.factor(year)
+table(year)
+
+mpi_feld_factors_trial <- as.factor(c(rep("mpi_feld_2011", 304),rep("mpi_feld_2012", 304)))
+jki_feld_factors_trial <- as.factor(c(rep("jki_feld_2012", 136),rep("jki_feld_2013", 131)))
+all_feld_factors_trial <- as.factor(c(rep("mpi_feld_2011", 304),rep("mpi_feld_2012", 304),
+                                    rep("jki_feld_2012", 136),rep("jki_feld_2013", 131),
+                                    rep("dethlingen_2011", 120)))
+
+breeder_factors_trial <- gmd_meta_breeder_trials$experiment_name
+
+valdis_factors_trial <- as.factor(c(rep("jki_shelter_2014", 384), rep("jki_shelter_2015", 252),
+                                    rep("mpi_fgh_2014", 404), rep("mpi_fgh_2015", 254),
+                                    rep("mpi_feld_2015", 377)))
+
+trial <- as.factor(c(as.character(all_feld_factors_trial), 
+                     as.character(breeder_factors_trial), 
+                     as.character(valdis_factors_trial)))
+
+trial_2 <- as.factor(c(as.character(all_feld_factors_trial), 
+                       as.character(year), 
+                       as.character(valdis_factors_trial)))
+table(trial_2)
+
+gmd_meta_model <- data.frame("trial" = trial, "trial_2" = trial_2, gmd_meta_model)
+
+# the first 1530 lines contain only TROST samples
+gmd_meta_model_trost <- droplevels(gmd_meta_model[1:1530,])
+table(gmd_meta_model_trost$trial_2)
+
+write.table(gmd_meta_model, "output/gmd_meta_model.txt", sep="\t")
+write.table(gmd_meta_model_trost, "output/gmd_meta_model_trost.txt", sep="\t")
+```
+
+
+## Load tables with GMD values
+```{r Load tables with GMD values}
+gmd_values <- read.table("data/gmd_raw_values_matrix.txt", sep = "\t", header = T, check.names = F)
+dim(gmd_values)
+```
+
+
+# Define subset of selected chromatograms 
+```{r subset of chromatograms}
+# select real biological samples
+gmd_values_model <- subset(gmd_values, rownames(gmd_values) %in% gmd_meta_model$chromatogram)
+```
+
+
+## Remove outlier, see chunk XXX: find outlier
+```{r remove outlier, see chunk XXX: find outlier}
+# which(rownames(gmd_values_model)=="098BC4DF-28D8-4966-A089-E6F2B0405EDF")
+# # 23
+# gmd_values_part <- gmd_values_part[-23,]
+# 
+# which(gmd_meta$chromatogram =="098BC4DF-28D8-4966-A089-E6F2B0405EDF")
+# # 23
+# gmd_meta <- gmd_meta[-23,]
+```
+
+
+# Define subset of overlapping analytes
+## SELECT: `r nrow(analytes_sel_exp_sort)` overlapping analytes regarding ALL TROST and VALDIS experiments, WITHOUT internal standards and contaminations
+```{r subset of analytes}
+gmd_values_select <- func_get_overlapping_analytes(analytes_sel_exp_sort, gmd_values_model)
+
+write.table(gmd_values_select, "output/gmd_values_prediction_model.txt", sep="\t")
+```
+
+
+# Replace NAs with minimal values of dataset and calculate LOG10 of raw intensity values 
+```{r replace NAs and calc LOG10 of raw values}
+# log10 transformation (with NAs)
+gmd_values_select_log10 <- log10(gmd_values_select)
+
+# replace NAs with lowest value of dataset
+gmd_values_select_woNA <- func_replace_na_with_min_value(gmd_values_select)
+
+# log10 transformation after NA replacement -> without NAs 
+gmd_values_select_log10_woNA <- log10(gmd_values_select_woNA)
+
+sum(is.na(gmd_values_select_log10))
+sum(is.na(gmd_values_select_log10_woNA))
+
+write.table(gmd_values_select_log10, "output/gmd_values_prediction_model_log10.txt", sep="\t")
+write.table(gmd_values_select_log10_woNA, "output/gmd_values_prediction_model_log10_woNA.txt", sep="\t")
+```
+
+
+
+
+# Save workspace
+```{r save workspace}
+save.image(paste("prediction_model_trost_valdis_", Sys.Date(), ".RData", sep="") )
+```
+
+
+# SessionInfo
+```{r sessionInfo}
+ sessionInfo()
+```
