@@ -125,7 +125,9 @@ gmd_meta_mpi_field_2012 <- func_get_gmd_metadata_all( func_get_experiment_id("MP
                                                        phenotyper_result_joined_with_gmd_ids)
 gmd_meta_jki_field_2012 <- func_get_gmd_metadata( func_get_experiment_id("JKI_Feld_2012") , 
                                                    phenotyper_result_joined_with_gmd_ids)
-#gmd_meta_jki_field_2013 <- func_get_gmd_metadata( func_get_experiment_id("JKI_Feld_2013") , phenotyper_result_joined_with_gmd_ids)
+gmd_meta_jki_field_2013 <- func_get_gmd_metadata_all( func_get_experiment_id("JKI_Feld_2013") , 
+                                                  phenotyper_result_joined_with_gmd_ids)
+
 gmd_meta_dethlingen_2011 <- func_get_gmd_metadata( func_get_experiment_id("Dethlingen_2011") , 
                                                     phenotyper_result_joined_with_gmd_ids)
 
@@ -143,7 +145,7 @@ gmd_meta_mpi_pruef_3 <- func_get_gmd_metadata( func_get_experiment_id("MPI_Pruef
 gmd_meta_mpi_pruef_1 <- gmd_meta_mpi_pruef_1[-178,]
 gmd_meta_mpi_pruef_2 <- gmd_meta_mpi_pruef_2[-48,]
 
-#gmd_meta_breeder_trials <- func_get_gmd_metadata( func_get_experiment_id("breeder_trials") , phenotyper_result_joined_with_gmd_ids)
+gmd_meta_breeder_trials <- func_get_gmd_metadata_all( func_get_experiment_id("breeder_trials") , phenotyper_result_joined_with_gmd_ids)
 
 # VALDIS TROST 2014 and 2015
 # 2014
@@ -171,7 +173,7 @@ write.table(gmd_meta_jki_test_2, "data/gmd_meta_jki_test_2.txt", sep="\t", quote
 write.table(gmd_meta_mpi_field_2011, "data/gmd_meta_mpi_field_2011.txt", sep="\t", quote=FALSE)
 write.table(gmd_meta_mpi_field_2012, "data/gmd_meta_mpi_field_2012.txt", sep="\t", quote=FALSE)
 write.table(gmd_meta_jki_field_2012, "data/gmd_meta_jki_field_2012.txt", sep="\t", quote=FALSE)
-#write.table(gmd_meta_jki_field_2013, "data/gmd_meta_jki_field_2013.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_jki_field_2013, "data/gmd_meta_jki_field_2013.txt", sep="\t", quote=FALSE)
 write.table(gmd_meta_dethlingen_2011, "data/gmd_meta_dethlingen_2011.txt", sep="\t", quote=FALSE)
 
 write.table(gmd_meta_jki_shelter_2011, "data/gmd_meta_jki_shelter_2011.txt", sep="\t", quote=FALSE)
@@ -179,6 +181,8 @@ write.table(gmd_meta_jki_shelter_2012, "data/gmd_meta_jki_shelter_2012.txt", sep
 write.table(gmd_meta_mpi_pruef_1, "data/gmd_meta_mpi_pruef_1.txt", sep="\t", quote=FALSE)
 write.table(gmd_meta_mpi_pruef_2, "data/gmd_meta_mpi_pruef_2.txt", sep="\t", quote=FALSE)
 write.table(gmd_meta_mpi_pruef_3, "data/gmd_meta_mpi_pruef_3.txt", sep="\t", quote=FALSE)
+
+write.table(gmd_meta_breeder_trials, "data/gmd_meta_breeder_trials.txt", sep="\t", quote=FALSE)
 
 write.table(gmd_meta_jki_shelter_2014, "data/gmd_meta_jki_shelter_2014.txt", sep="\t", quote=FALSE)
 write.table(gmd_meta_mpi_fgh_2014, "data/gmd_meta_mpi_fgh_2014.txt", sep="\t", quote=FALSE)
