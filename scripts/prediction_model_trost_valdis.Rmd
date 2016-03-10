@@ -11,6 +11,12 @@ output:
     toc_depth: 4
 ---
 
+# Set working directory  
+```{r set working directory}
+getwd()
+#setwd("D:/work/repos/trost_metabolomics")
+```
+
 # Set pander and knitr options
 ```{r set pander and knitr options, message=FALSE}
 library(knitr)
@@ -22,6 +28,9 @@ panderOptions('table.split.table', 200)
 # set options for knitr
 opts_chunk$set(fig.width=5, fig.height=5, cache=FALSE, highlight = TRUE, fig.show="asis")
 opts_knit$set(root.dir = '../')
+
+# load workspace
+# load("prediction_model_trost_valdis_2016-03-07.RData")
 ```
 
 
@@ -101,13 +110,10 @@ head(trost_gmd_ids)
 gmd_meta_mpi_field_2011 <- read.table("data/gmd_meta_mpi_field_2011.txt", sep = "\t", header = T)
 gmd_meta_mpi_field_2012 <- read.table("data/gmd_meta_mpi_field_2012.txt", sep = "\t", header = T)
 gmd_meta_jki_field_2012 <- read.table("data/gmd_meta_jki_field_2012.txt", sep = "\t", header = T)
+gmd_meta_jki_field_2013 <- read.table("data/gmd_meta_jki_field_2013.txt", sep = "\t", header = T)
 gmd_meta_dethlingen_2011 <- read.table("data/gmd_meta_dethlingen_2011.txt", sep = "\t", header = T)
-gmd_meta_jki_field_2013 <- read.table("../../TROST/GC-MS/GMD_Phenotyper/data/gmd_meta_jki_field_2013.txt", 
-                                      sep = "\t", header = T)
-gmd_meta_breeder_trials <- read.table("../../TROST/GC-MS/GMD_Phenotyper/data/gmd_meta_breeder_trials.txt", 
-                                      sep = "\t", header = T)
 
-colnames(gmd_meta_jki_field_2013) <- colnames(gmd_meta_breeder_trials) <- colnames(gmd_meta_jki_field_2012)
+gmd_meta_breeder_trials <- read.table("data/gmd_meta_breeder_trials.txt", sep = "\t", header = T)
 
 # VALDIS
 gmd_meta_jki_shelter_2014 <- read.table("data/gmd_meta_jki_shelter_2014.txt", sep = "\t", header = T)
@@ -137,7 +143,7 @@ gmd_meta <- rbind(gmd_meta_mpi_field_2011, gmd_meta_mpi_field_2012,
                   gmd_meta_jki_shelter_2014, gmd_meta_jki_shelter_2015,
                   gmd_meta_mpi_fgh_2014, gmd_meta_mpi_fgh_2015, gmd_meta_mpi_field_2015)
 
-# change treatment
+# change treatment: 50% nFK to Kontrolle
 levels(gmd_meta$treatment)[4] <- levels(gmd_meta$treatment)[1] 
 
 # change genotype names for cultivars
@@ -167,9 +173,9 @@ year <- as.factor(year)
 table(year)
 
 mpi_feld_factors_trial <- as.factor(c(rep("mpi_feld_2011", 304),rep("mpi_feld_2012", 304)))
-jki_feld_factors_trial <- as.factor(c(rep("jki_feld_2012", 136),rep("jki_feld_2013", 131)))
+jki_feld_factors_trial <- as.factor(c(rep("jki_feld_2012", 136),rep("jki_feld_2013", 133)))
 all_feld_factors_trial <- as.factor(c(rep("mpi_feld_2011", 304),rep("mpi_feld_2012", 304),
-                                    rep("jki_feld_2012", 136),rep("jki_feld_2013", 131),
+                                    rep("jki_feld_2012", 136),rep("jki_feld_2013", 133),
                                     rep("dethlingen_2011", 120)))
 
 breeder_factors_trial <- gmd_meta_breeder_trials$experiment_name
@@ -189,8 +195,6 @@ table(trial_2)
 
 gmd_meta_model <- data.frame("trial" = trial, "trial_2" = trial_2, gmd_meta_model)
 
-# sort table by chromatogram ID
-gmd_meta_model_sort <- gmd_meta_model[order(as.character(gmd_meta_model$chromatogram)),]
 
 # create column with genotype class (for VALDIS lines)
 AxR <- which(grepl("^AR", gmd_meta_model$genotype_name))
@@ -200,7 +204,10 @@ genotype_class[AxR] <- "AxR"
 genotype_class[ExA] <- "ExA"
 gmd_meta_model$genotype_class <- factor(genotype_class)
 
-# only the 995 samples from trost field trials
+# sort table by chromatogram ID
+gmd_meta_model_sort <- gmd_meta_model[order(as.character(gmd_meta_model$chromatogram)),]
+
+# only the 997 samples from trost field trials
 feld_idx <- which(gmd_meta_model_sort$trial %in% levels(all_feld_factors_trial))
 feld_chrom <- droplevels(gmd_meta_model_sort$chromatogram[feld_idx])
 length(feld_chrom)
@@ -208,7 +215,7 @@ length(feld_chrom)
 gmd_meta_model_feld <- droplevels(gmd_meta_model_sort[feld_idx,])
 table(gmd_meta_model_feld$trial_2)
 
-# only the 1530 samples from trost field and breeder trials
+# only the 1532 samples from trost field and breeder trials
 trost_idx <- which(gmd_meta_model_sort$trial_2 %in% union(levels(all_feld_factors_trial), levels(year)))
 trost_chrom <- droplevels(gmd_meta_model_sort$chromatogram[trost_idx])
 length(trost_chrom)
@@ -218,6 +225,7 @@ table(gmd_meta_model_trost$trial_2)
 
 write.table(gmd_meta_model, "output/gmd_meta_model.txt", sep="\t")
 write.table(gmd_meta_model_sort, "output/gmd_meta_model_sort.txt", sep="\t")
+write.table(gmd_meta_model_feld, "output/gmd_meta_model_feld.txt", sep="\t")
 write.table(gmd_meta_model_trost, "output/gmd_meta_model_trost.txt", sep="\t")
 
 # valdis samples
@@ -238,6 +246,8 @@ dim(gmd_values)
 ```{r subset of chromatograms}
 # select real biological samples
 gmd_values_model <- subset(gmd_values, rownames(gmd_values) %in% gmd_meta_model$chromatogram)
+dim(gmd_values_model)
+# 3203 566
 ```
 
 
@@ -259,7 +269,7 @@ gmd_values_model <- subset(gmd_values, rownames(gmd_values) %in% gmd_meta_model$
 gmd_values_select <- func_get_overlapping_analytes(analytes_sel_exp_sort, gmd_values_model)
 dim(gmd_values_select)
 
-# the first 1530 lines contain only TROST samples 
+# the first 1532 lines contain only TROST samples 
 gmd_values_select_trost <- gmd_values_select[trost_idx, ]
 dim(gmd_values_select_trost)
 head(rownames(gmd_values_select_trost))
@@ -320,10 +330,13 @@ factors <- func_create_factors_table(gmd_meta_model_sort,
                                      tolerance)
 levels(factors$genotype_class)
 
+# only TROST data, without VALDIS
 factors_trost <- func_create_factors_table(gmd_meta_model_trost, 
                                      gmd_meta_model_trost$SequenceID, 
                                      gmd_meta_model_trost$BatchID, 
                                      tolerance_trost)
+
+levels(factors_trost$genotype_class)
 
 write.table(factors, "output/factors_prediction_model.txt", sep="\t")
 write.table(factors_trost, "output/factors_prediction_model_trost.txt", sep="\t")
@@ -338,6 +351,7 @@ write.table(factors_trost, "output/factors_prediction_model_trost.txt", sep="\t"
 
 dim(gmd_values_select_log10)
 
+# without NA (replaced by min)
 norm_values_log10_woNA <- apply(gmd_values_select_log10_woNA, 2, RemoveFactors, sam = factors, 
                               facs = c("genotype_class", "treatment", "SequenceID", "BatchID", "log10_AvgAnnotated"), 
                               keep = c("genotype_class", "treatment"))
@@ -363,6 +377,10 @@ gmd_values_select_trost_prep <- prep(gmd_values_select_trost, scale = "none", ce
 gmd_values_select_trost_prep_rnipals <- pca(gmd_values_select_trost_prep, nPcs = 5, method="rnipals")
 
 pairs(gmd_values_select_trost_prep_rnipals@scores, col = gmd_meta_model_trost$trial_2)
+plot(gmd_values_select_trost_prep_rnipals@scores[,1],
+     gmd_values_select_trost_prep_rnipals@scores[,2], 
+     col = gmd_meta_model_trost$trial_2, pch=19)
+legend("bottomright", legend = levels(gmd_meta_model_trost$trial_2), fill=1:7)
 
 #############################
 
@@ -377,12 +395,37 @@ norm_values_log10_prep_rnipals <- pca(norm_values_log10_prep, nPcs = 5, method="
 write.table(norm_values_log10_prep_rnipals@completeObs,
             "output/norm_values_log10_rnipals_completeObs.txt", sep="\t")
 
-#palette(rainbow(36))
-#pairs(gmd_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$genotype_class)
-#pairs(norm_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$genotype_class)
+# effect of treatment
+palette(cols_treatment)
+pairs(norm_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$treatment)
+
+# effect of genotype
+palette(rainbow(36))
+pairs(gmd_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$genotype_class)
+pairs(norm_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$genotype_class)
+plot(norm_values_log10_prep_rnipals@scores[,1],
+     norm_values_log10_prep_rnipals@scores[,2],
+     col = gmd_meta_model_sort$genotype_class, pch=c(17,19)[gmd_meta_model_sort$treatment])
+text(norm_values_log10_prep_rnipals@scores[,1],
+     norm_values_log10_prep_rnipals@scores[,2],
+     labels = gmd_meta_model_sort$genotype_class, cex=0.4)
+legend("topright", legend = levels(gmd_meta_model_sort$genotype_class), fill=1:36, cex=0.6)
+
+# effect of trial
 palette(rainbow(12))
+# before normalization
 pairs(gmd_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$trial_2)
+plot(gmd_values_log10_prep_rnipals@scores[,1],
+     gmd_values_log10_prep_rnipals@scores[,2],
+     col = gmd_meta_model_sort$trial_2, pch=19)
+legend("topright", legend = levels(gmd_meta_model_sort$trial_2), fill=1:12, cex=0.6)
+
+# after normalization
 pairs(norm_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$trial_2)
+plot(norm_values_log10_prep_rnipals@scores[,1],
+     norm_values_log10_prep_rnipals@scores[,2],
+     col = gmd_meta_model_sort$trial_2, pch=19)
+legend("topright", legend = levels(gmd_meta_model_sort$trial_2), fill=1:12, cex=0.6)
 ```
 
 
@@ -397,7 +440,7 @@ head(gmd_meta_model_feld$chromatogram)
 gmd_meta_model_feld_joined <- merge(gmd_meta_model_feld, tolerance_table, 
                                     by.x = "genotype_name", by.y = "cultivar")
 
-# 911 samples (of 995) because 3 cultivars were removed!
+# 913 samples (of 997) because 3 cultivars were removed!
 
 train_idx <- which(gmd_meta_model_feld_joined$model_set=="train")
 test_idx <- which(gmd_meta_model_feld_joined$model_set=="test")
@@ -504,7 +547,8 @@ confusionMatrix(table(predict(tree_cat3_train_pruned, test_data, type="class"), 
 
 # Save workspace
 ```{r save workspace}
-save.image(paste("prediction_model_trost_valdis_", Sys.Date(), ".RData", sep="") )
+#save.image(paste("prediction_model_trost_valdis_", Sys.Date(), ".RData", sep="") )
+save.image(paste("prediction_model_trost_valdis_2016-03-07.RData", sep="") )
 ```
 
 
