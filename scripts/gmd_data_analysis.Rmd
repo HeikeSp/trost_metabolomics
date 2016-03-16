@@ -47,12 +47,12 @@ file_analytes_table <- paste("data/", analytes_table, ".txt", sep = "")
 file_gmd_values <- paste("data/gmd_values_", experiment_string, ".txt", sep = "")
 file_gmd_meta <- paste("data/gmd_meta_", experiment_string, ".txt", sep = "")
 
-file_gmd_values_select <- paste("output/", experiment_string, "/gmd_values_select.txt", sep = "")
-file_gmd_values_select_log10 <- paste("output/", experiment_string, "/gmd_values_select_log10.txt", sep = "")
-file_gmd_values_select_log10_woNA <- paste("output/", experiment_string, "/gmd_values_select_log10_woNA.txt", sep = "")
+file_gmd_values_select <- paste("output/", experiment_string_out, "/gmd_values_select.txt", sep = "")
+file_gmd_values_select_log10 <- paste("output/", experiment_string_out, "/gmd_values_select_log10.txt", sep = "")
+file_gmd_values_select_log10_woNA <- paste("output/", experiment_string_out, "/gmd_values_select_log10_woNA.txt", sep = "")
 
-file_values_norm_log10_woOutlier <- paste("output/", experiment_string, "/values_norm_log10_woOutlier.txt", sep = "")
-file_gmd_values_select_log10_woOutlier <- paste("output/", experiment_string, "/gmd_values_select_log10_woOutlier.txt", sep = "")
+file_values_norm_log10_woOutlier <- paste("output/", experiment_string_out, "/values_norm_log10_woOutlier.txt", sep = "")
+file_gmd_values_select_log10_woOutlier <- paste("output/", experiment_string_out, "/gmd_values_select_log10_woOutlier.txt", sep = "")
 ```
 
 
@@ -149,7 +149,7 @@ write.table(gmd_values_select_log10_woNA, file_gmd_values_select_log10_woNA, sep
 ```{r calculate percentage of NAs and plot histograms}
 func_print_na_statistics(gmd_values_select, analytes_sel_exp_sort)
 
-pdf(paste("figures/", experiment_string, "/NAs_hist.pdf", sep=""))
+pdf(paste("figures/", experiment_string_out, "/NAs_hist.pdf", sep=""))
 func_plot_na_statistics(gmd_values_select)
 dev.off()
 ```
@@ -181,7 +181,7 @@ levels(factors$genotype_class)
 
 # save factors table
 write.table(factors, 
-            paste("output/", experiment_string, "/factors.txt", sep=""), 
+            paste("output/", experiment_string_out, "/factors.txt", sep=""), 
             sep="\t")
 ```
 
@@ -200,7 +200,7 @@ write.table(factors,
 #                                     facs = all_factors_variable,
 #                                     keep = keep_factors_variable)
 # write.table(values_norm_log10, 
-#             paste("output/", experiment_string, "/values_norm_log10.txt", sep=""), 
+#             paste("output/", experiment_string_out, "/values_norm_log10.txt", sep=""), 
 #             sep="\t")
 
 # matrix WITHOUT NAs, after log10
@@ -209,7 +209,7 @@ values_norm_log10_woNA <- func_normalize(gmd_values_select_log10_woNA,
                                          facs = all_factors_variable,
                                          keep = keep_factors_variable)
 write.table(values_norm_log10_woNA, 
-            paste("output/", experiment_string, "/values_norm_log10_woNA.txt", sep=""), 
+            paste("output/", experiment_string_out, "/values_norm_log10_woNA.txt", sep=""), 
             sep="\t")
 ```
 
@@ -222,7 +222,7 @@ write.table(values_norm_log10_woNA,
 * outlier is replaced by NA
 
 ```{r outlier detection and replacement}
-pdf( paste("figures/", experiment_string, "/outlier_hist.pdf", sep="") )
+pdf( paste("figures/", experiment_string_out, "/outlier_hist.pdf", sep="") )
 func_hist_outlier(values_norm_log10_woNA, threshold = outlier_threshold)
 dev.off()
 
@@ -262,7 +262,7 @@ cv_values <- func_calculate_cv(values_norm_log10_woNA_woOutlier, factors,
 func_print_cv(cv_values, cv_value_threshold)
 
 # plot histogram of cv values per analyte
-pdf( paste("figures/", experiment_string, "/cv_values_hist.pdf", sep="") )
+pdf( paste("figures/", experiment_string_out, "/cv_values_hist.pdf", sep="") )
 func_plot_cv(cv_values)
 dev.off()
 ```
@@ -271,7 +271,7 @@ dev.off()
 # Check normal distribution --> shapiro test and histogram
 ```{r check normal distribution}
 # plot histograms of normalized values per analyte
-pdf( paste("figures/", experiment_string, "/values_norm_log10_hist.pdf", sep="") )
+pdf( paste("figures/", experiment_string_out, "/values_norm_log10_hist.pdf", sep="") )
 func_plot_dist(values_norm_log10_woNA_woOutlier)
 dev.off()
 
@@ -300,10 +300,10 @@ dim(values_norm_log10_median)
 #                                                "treatment", "sample_time", "genotype_name", 
 #                                                median, analytes_sel_exp_sort)
 
-write.table(values_norm_log10_mean, paste("output/", experiment_string, "/values_norm_log10_mean.txt", sep=""), sep="\t")
-write.table(values_norm_log10_median, paste("output/", experiment_string, "/values_norm_log10_median.txt", sep=""), sep="\t")
-# write.table(values_norm_log10_woNA_mean, paste("output/", experiment_string, "/values_norm_log10_woNA_mean.txt", sep=""), sep="\t")
-# write.table(values_norm_log10_woNA_median, paste("output/", experiment_string, "/values_norm_log10_woNA_median.txt", sep=""), sep="\t")
+write.table(values_norm_log10_mean, paste("output/", experiment_string_out, "/values_norm_log10_mean.txt", sep=""), sep="\t")
+write.table(values_norm_log10_median, paste("output/", experiment_string_out, "/values_norm_log10_median.txt", sep=""), sep="\t")
+# write.table(values_norm_log10_woNA_mean, paste("output/", experiment_string_out, "/values_norm_log10_woNA_mean.txt", sep=""), sep="\t")
+# write.table(values_norm_log10_woNA_median, paste("output/", experiment_string_out, "/values_norm_log10_woNA_median.txt", sep=""), sep="\t")
 ```
 
 
@@ -339,7 +339,7 @@ pairs(pca_norm_log10_woNA_pareto_rnipals@scores[,1:5],
 
 ## Compare scaling methods: PCA plots
 ```{r compare scaling methods: pca plots}
-pdf(paste("figures/", experiment_string, "/PCA_scoresplots_scaling_effect.pdf", sep="") )
+pdf(paste("figures/", experiment_string_out, "/PCA_scoresplots_scaling_effect.pdf", sep="") )
 palette(cols_genotype_factor)
 pairs(pca_norm_log10_pareto_rnipals@scores[,1:5], col=factors$genotype_class, pch=19, main="pareto scaling")
 pairs(pca_norm_log10_uv_rnipals@scores[,1:5], col=factors$genotype_class, pch=19, main="unit variance scaling")
@@ -383,7 +383,7 @@ pca_norm_log10_none_svdimpute <- func_prep_pca(values_norm_log10_woNA_woOutlier,
 
 ## Compare PCA methods: PCA plots
 ```{r compare pca methods: pca plots}
-pdf(paste("figures/", experiment_string, "/PCA_scoresplots_pca_methods_effect.pdf", sep="") )
+pdf(paste("figures/", experiment_string_out, "/PCA_scoresplots_pca_methods_effect.pdf", sep="") )
 palette(cols_genotype_factor)
 pairs(pca_norm_log10_none_rnipals@scores[,1:5], col=factors$genotype_class, pch=19, main="rnipals")
 pairs(pca_norm_log10_none_bpca@scores[,1:5], col=factors$genotype_class, pch=19, main="bpca")
@@ -408,7 +408,7 @@ dev.off()
 # Scatterplots for log-transformed values --> compare with/without NA replacement by minimum
 ```{r scatterplots pareto scaling + rnipals PCA}
 # ANOVA Normalisierung mit log10-Werten 
-pdf(paste("figures/", experiment_string, "/PCA_scoresplots_NA_effect.pdf", sep=""), width=12, height=6)
+pdf(paste("figures/", experiment_string_out, "/PCA_scoresplots_NA_effect.pdf", sep=""), width=12, height=6)
 
 palette(cols_genotype_factor)
 par(mfrow=c(1,2))
@@ -465,31 +465,31 @@ if(length(levels(factors$sample_time))==1){
   res_anova_adj <- func_anova_3fac(values_norm_log10_woNA_woOutlier, factors, "treatment", "genotype_class", "sample_time", 0.01, analytes_sel_exp_sort$Name)
   }
 
-write.table(res_anova_adj, paste("output/", experiment_string, "/res_anova_adj.txt", sep=""), sep="\t")
+write.table(res_anova_adj, paste("output/", experiment_string_out, "/res_anova_adj.txt", sep=""), sep="\t")
 ```
 
 
 # Boxplots of normalized values per analyte using 1 factor
 ```{r boxplots of normalized values per analyte using 1 factor}
-pdf(paste("figures/", experiment_string, "/boxplot_treatment.pdf", sep=""), width = 6, height = 6)
+pdf(paste("figures/", experiment_string_out, "/boxplot_treatment.pdf", sep=""), width = 6, height = 6)
 func_boxplot_1fac(values_norm_log10_woNA_woOutlier, factors, "treatment", res_anova_adj, cols_treatment, analytes_sel_exp_sort$Name)
 dev.off()
 
 
 if(length(levels(factors$sample_time)) > 1){
-  pdf(paste("figures/", experiment_string, "/boxplot_sample_time.pdf", sep=""), width = 6, height = 6)
+  pdf(paste("figures/", experiment_string_out, "/boxplot_sample_time.pdf", sep=""), width = 6, height = 6)
   func_boxplot_1fac(values_norm_log10_woNA_woOutlier, factors, "sample_time", res_anova_adj, cols_sample_time_factor, analytes_sel_exp_sort$Name)
   dev.off()
   }
 
-pdf(paste("figures/", experiment_string, "/boxplot_genotype.pdf", sep=""), width = 7, height = 6)
+pdf(paste("figures/", experiment_string_out, "/boxplot_genotype.pdf", sep=""), width = 7, height = 6)
 func_boxplot_1fac(values_norm_log10_woNA_woOutlier, factors, "genotype_class", res_anova_adj, cols_genotype_factor, analytes_sel_exp_sort$Name)
 dev.off()
 
 
 # these boxplots are specific for VALDIS experiments with many individual genotypes
 if(length(levels(factors$genotype_name)) > 34){
-  pdf(paste("figures/", experiment_string, "/boxplot_genotype_name.pdf", sep="") , width = 15, height = 8)
+  pdf(paste("figures/", experiment_string_out, "/boxplot_genotype_name.pdf", sep="") , width = 15, height = 8)
   func_boxplot_1fac(values_norm_log10_woNA_woOutlier, factors, "genotype_name", 
                     res_anova_adj = func_anova_2fac(values_norm_log10_woNA_woOutlier, 
                                                     factors, "treatment", "genotype_name", 
@@ -505,7 +505,7 @@ if(length(levels(factors$genotype_name)) > 34){
 if(length(levels(factors$sample_time)) > 1){
   res_anova2_adj <- func_anova_2fac_ia(values_norm_log10_woNA_woOutlier, factors, "treatment", "sample_time", 0.01, analytes_sel_exp_sort$Name)
   
-  write.table(res_anova2_adj, paste("output/", experiment_string, "/res_anova2_adj.txt", sep=""), sep="\t")
+  write.table(res_anova2_adj, paste("output/", experiment_string_out, "/res_anova2_adj.txt", sep=""), sep="\t")
 }
 ```
 
@@ -515,7 +515,7 @@ if(length(levels(factors$sample_time)) > 1){
 
 if(length(levels(factors$sample_time)) > 1){
   
-pdf(paste("figures/", experiment_string, "/boxplot_treatment_sample_time.pdf", sep="") )
+pdf(paste("figures/", experiment_string_out, "/boxplot_treatment_sample_time.pdf", sep="") )
 par(mar=c(7, 4.1, 7, 2.1))
 func_boxplot_2fac(normalized_values = values_norm_log10_woNA_woOutlier, 
                   trial_factors = factors, 
@@ -543,17 +543,17 @@ if(do_agg_late_before_samples == 1) {
   factors_late_before$sample_time <- droplevels(factors_late_before$sample_time)
   
   write.table(values_norm_log10_late_before, 
-              paste("output/", experiment_string, "/values_norm_log10_late_before.txt", sep=""), 
+              paste("output/", experiment_string_out, "/values_norm_log10_late_before.txt", sep=""), 
               sep="\t")
   write.table(factors_late_before,
-              paste("output/", experiment_string, "/factors_late_before.txt", sep=""), 
+              paste("output/", experiment_string_out, "/factors_late_before.txt", sep=""), 
               sep="\t")
   
   # un-normalized values
   
   gmd_values_select_log10_late_before <- subset(gmd_values_select_log10, factors$sample_time=="late/before")
   write.table(gmd_values_select_log10_late_before, 
-              paste("output/", experiment_string, "/gmd_values_select_log10_late_before.txt", sep=""), 
+              paste("output/", experiment_string_out, "/gmd_values_select_log10_late_before.txt", sep=""), 
               sep="\t")
 
   } else { 
@@ -577,7 +577,7 @@ if(do_agg_late_before_samples == 1)
                                               values_norm_log10_late_before_mean[,-c(1,2)])
   dim(values_norm_log10_late_before_mean)
   write.table(values_norm_log10_late_before_mean, 
-              paste("output/", experiment_string, "/values_norm_log10_late_before_mean.txt", sep=""), 
+              paste("output/", experiment_string_out, "/values_norm_log10_late_before_mean.txt", sep=""), 
               sep="\t")
   
 } else { print("aggregate only late/before samples NOT executed") }
@@ -590,7 +590,7 @@ corr_res <- corr.test(values_norm_log10_woNA_woOutlier)
 colnames(corr_res$r) <- rownames(corr_res$r) <- analytes_sel_exp_sort$Name
 colnames(corr_res$p) <- rownames(corr_res$p) <- analytes_sel_exp_sort$Name
 
-pdf(paste("figures/", experiment_string, "/corr_plot.pdf", sep=""), width = 10, height = 10)
+pdf(paste("figures/", experiment_string_out, "/corr_plot.pdf", sep=""), width = 10, height = 10)
 corrplot(corr_res$r, method= "color", order = "hclust", tl.col = "black", tl.cex = 0.7, 
          mar = c(1,0.5,2,0.5), title = "all values")
 corrplot(corr_res$r, method= "color", order = "hclust", tl.col = "black", tl.cex = 0.7, 
@@ -602,7 +602,7 @@ dev.off()
 
 # Save workspace
 ```{r save workspace}
-save.image(paste("gmd_data_analysis_", experiment_string, "_", Sys.Date(), ".RData", sep="") )
+save.image(paste("gmd_data_analysis_", experiment_string_out, "_", Sys.Date(), ".RData", sep="") )
 ```
 
 

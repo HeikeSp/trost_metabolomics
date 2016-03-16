@@ -7,7 +7,7 @@ source("../functions/colors.R")
 
 # Set variables specific for experiment
 # Set experiment string for file names
-experiment_string <- "mpi_fgh_2015"
+experiment_string <- experiment_string_out <- "mpi_fgh_2015"
 
 # which selection of analytes should be used
 analytes_table <- "analytes_table_20exp_overlap_select_ordered"

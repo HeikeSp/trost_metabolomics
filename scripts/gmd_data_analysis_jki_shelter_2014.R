@@ -7,7 +7,7 @@ source("../functions/colors.R")
 
 # Set variables specific for experiment
 # Set experiment string for file names
-experiment_string <- "jki_shelter_2014"
+experiment_string <- experiment_string_out <- "jki_shelter_2014"
 
 # which selection of analytes should be used
 analytes_table <- "analytes_table_20exp_overlap_select_ordered"

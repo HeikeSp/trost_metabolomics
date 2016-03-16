@@ -7,7 +7,7 @@ source("../functions/colors.R")
 
 # Set variables specific for experiment
 # Set experiment string for file names
-experiment_string <- "mpi_test_2"
+experiment_string <- experiment_string_out <- "mpi_test_2"
 
 # which selection of analytes should be used
 analytes_table <- "analytes_table_7exp_overlap_select_ordered"
@@ -47,7 +47,7 @@ sample_names_variable <- c("t04_a_c", "t04_m_c", "t04_d_c", "t04_s_c",
 # table(factors$BatchID, factors$treatment)
 
 # Create the output filename
-outfile = paste("gmd_data_analysis_", experiment_string, "_", Sys.Date(), ".html", sep="")
+outfile = paste("gmd_data_analysis_", experiment_string_out, "_", Sys.Date(), ".html", sep="")
 
 # Compile the document
 # knit2html(input="gmd_data_analysis.Rmd", output=outfile)
