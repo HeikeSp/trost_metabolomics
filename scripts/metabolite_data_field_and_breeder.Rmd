@@ -1,0 +1,466 @@
+---
+title: "Combine metabolite data from TROST FIELD trials and Breeder trials"
+author: "Heike Sprenger"
+date: "May 4, 2016"
+output:
+  html_document:
+    highlight: tango
+    number_section: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 4
+---
+
+# Set working directory  
+```{r set working directory}
+getwd()
+#setwd("D:/work/repos/trost_metabolomics/")
+```
+
+
+# Load workspace, packages and scripts
+```{r load workspace, message=FALSE}
+# load packages
+library(knitr)
+library(reshape)
+library(pander)
+library(pcaMethods)
+library(ggplot2)
+library(corrplot)
+library(gplots)
+library(RColorBrewer)
+
+# set options for pander
+panderOptions('table.split.table', 200)
+
+# set options for knitr
+opts_chunk$set(fig.width=5, fig.height=5, cache=FALSE, highlight = TRUE, fig.show="asis")
+opts_knit$set(root.dir = '../')
+
+# load workspace
+#load("metabolite_data_field_and_breeder.RData")
+```
+
+
+# Source R functions
+```{r source R functions}
+# source("../functions/colors.R")
+# source("../functions/names.R")
+# source("../functions/func_histograms.R")
+# source("../functions/func_prep_pca.R")
+# source("../functions/func_pca_plots.R")
+# source("../functions/RemoveFactors_function.R")
+```
+
+
+# Load packages and functions for metabolite data analysis
+```{r load packages and functions for metabolite data analysis, message=FALSE, fig.show='hide'}
+# load packages
+source("../functions/func_load_packages_metabolite_data_analysis.R")
+
+# load functions
+source("../functions/func_load_functions_metabolite_data_analysis.R")
+```
+
+
+# Load phenotyper results and tolerance
+this table comes from ``phenotyper_metadata.Rmd``
+```{r load phenotyper results and tolerance}
+phenotyper_result_joined <- read.table("data/phenotyper_result_joined_with_gmd_ids.txt", 
+                                       sep="\t", header = T)
+
+# SHOULD BE ZERO!
+sum(is.na(phenotyper_result_joined$genotype_name))
+# IF NOT EXECUTE ~\work\repos\database_scripts\update_plantlines_alias.sql
+# AND REPEAT gmd_complete_workflow.Rmd
+
+# tolerance
+tolerance_table <- read.table("../trost_phenotypes/output/tolerance_phenotyper_metadata_2sub.txt", 
+                        sep = "\t", header = TRUE)
+
+# change names of cultivars from upper to lower case
+levels(tolerance_table$cultivar) <- names_cultivars_31
+
+# relevel tolerance factors
+tolerance_table$tol_cat2_fve <- factor(tolerance_table$tol_cat2_fve, levels = c("low", "high"))
+tolerance_table$tol_cat3_fve <- factor(tolerance_table$tol_cat3_fve, levels = c("low","mid", "high"))
+```
+
+
+# Load analytes table
+
+* overlapping analytes for 5 TROST field experiments and breeder trials
+* this table comes from ``gmd_analytes.Rmd``
+
+```{r load analytes table}
+
+# 115 overlapping analytes
+analytes_sel_exp_sort <- read.table("data/analytes_table_model_overlap_select_ordered.txt", 
+                                    sep ="\t", header = T, allowEscapes = T)
+```
+
+
+# Load `trost_TagList`
+`trost_TagList` shows all experiments that belong to the TROST/VALDIS project and comes from `gmd_first_steps.Rmd`
+
+```{r load trost taglist}
+trost_TagList <- read.table("data/trost_TagList.txt", sep="\t", header=TRUE)
+
+trost_gmd_ids <- read.table("data/trost_gmd_ids.txt", sep="\t", header=TRUE)
+head(trost_gmd_ids)
+```
+
+
+# Load tables with GMD values
+```{r Load tables with GMD values}
+gmd_values <- read.table("data/gmd_raw_values_matrix.txt", sep = "\t", header = T, check.names = F)
+dim(gmd_values)
+```
+
+
+# Load tables with GMD metadata
+```{r load tables with GMD metadata}
+# TROST
+gmd_meta_mpi_field_2011 <- read.table("data/gmd_meta_mpi_field_2011.txt", sep = "\t", header = T)
+gmd_meta_mpi_field_2012 <- read.table("data/gmd_meta_mpi_field_2012.txt", sep = "\t", header = T)
+gmd_meta_jki_field_2012 <- read.table("data/gmd_meta_jki_field_2012.txt", sep = "\t", header = T)
+gmd_meta_jki_field_2013 <- read.table("data/gmd_meta_jki_field_2013.txt", sep = "\t", header = T)
+gmd_meta_dethlingen_2011 <- read.table("data/gmd_meta_dethlingen_2011.txt", sep = "\t", header = T)
+gmd_meta_breeder_trials <- read.table("data/gmd_meta_breeder_trials.txt", sep = "\t", header = T)
+```
+
+
+# Bind GMD metadata
+
+* After update of Phenotyper DB it might be necessary to repeat this script: ``~\work\repos\database_scripts\update_plantlines_alias.sql`` because genotype_name of some cultivars are NA (78)
+
+```{r bind GMD metadata}
+gmd_meta <- rbind(gmd_meta_mpi_field_2011, gmd_meta_mpi_field_2012, 
+                  gmd_meta_jki_field_2012, gmd_meta_jki_field_2013,
+                  gmd_meta_dethlingen_2011, gmd_meta_breeder_trials)
+dim(gmd_meta)
+
+# change treatment: 50% nFK to Kontrolle
+levels(gmd_meta$treatment)[4] <- levels(gmd_meta$treatment)[1] 
+
+# change genotype names for 31 cultivars
+levels(gmd_meta$genotype_name) <- names_cultivars_34
+
+# use only control and stress treatments
+gmd_meta_2 <- droplevels(subset(gmd_meta, gmd_meta$treatment %in% c("Kontrolle", "Trockenstress")))
+levels(gmd_meta_2$treatment) <- c("control", "drought stress")
+dim(gmd_meta_2)
+
+# use only late samples
+gmd_meta_3 <- droplevels(subset(gmd_meta_2, gmd_meta_2$sample_time == "late"))
+dim(gmd_meta_3)
+
+# use only relevant genotypes (31 cultivars and 193 lines from 2014)
+genotypes_model <- union(names_cultivars_31, names_lines_2014)
+gmd_meta_model <- droplevels(subset(gmd_meta_3, gmd_meta_3$genotype_name %in% genotypes_model))
+dim(gmd_meta_model)
+# 1403 29
+
+table(gmd_meta_model$experiment_name)
+table(gmd_meta_model$experiment_id)
+```
+
+
+# Trial names
+```{r trial names}
+
+trial_1 <- as.character(gmd_meta_model$experiment_name)
+
+trial_1[which(gmd_meta_model$experiment_id==44443)] = "mpi_feld_2011"
+trial_1[which(gmd_meta_model$experiment_id==56726)] = "mpi_feld_2012"
+trial_1[which(gmd_meta_model$experiment_id==56875)] = "jki_feld_2012"
+trial_1[which(gmd_meta_model$experiment_id==62327)] = "jki_feld_2013"
+trial_1[which(gmd_meta_model$experiment_id==46150)] = "dethlingen_2011"
+
+trial_1 <- as.factor(trial_1)
+table(trial_1)
+
+############
+
+trial_2 <- rep("breeder_2011", nrow(gmd_meta_model))
+
+trial_2[which(gmd_meta_model$experiment_id %in% 
+                c(56876, 56878, 56879, 56880, 56881, 56882,  56883, 56884))] = "breeder_2012"
+
+trial_2[which(gmd_meta_model$experiment_id==44443)] = "mpi_feld_2011"
+trial_2[which(gmd_meta_model$experiment_id==56726)] = "mpi_feld_2012"
+trial_2[which(gmd_meta_model$experiment_id==56875)] = "jki_feld_2012"
+trial_2[which(gmd_meta_model$experiment_id==62327)] = "jki_feld_2013"
+trial_2[which(gmd_meta_model$experiment_id==46150)] = "dethlingen_2011"
+
+trial_2 <- as.factor(trial_2)
+table(trial_2)
+
+###########
+
+gmd_meta_model <- data.frame("trial" = trial_1, "trial_2" = trial_2, gmd_meta_model)
+
+# add combined column for treatment and breeder year
+gmd_meta_model$treatment2 <- as.character(gmd_meta_model$treatment)
+gmd_meta_model$treatment2[which(gmd_meta_model$trial_2 == "breeder_2011")] <- "2011"
+gmd_meta_model$treatment2[which(gmd_meta_model$trial_2 == "breeder_2012")] <- "2012"
+gmd_meta_model$treatment2 <- factor(gmd_meta_model$treatment2, 
+                                    levels = c("control", "drought stress", "2011","2012"))
+table(gmd_meta_model$treatment2)
+```
+
+
+# Subset of metadata for field, TROST or VALDIS
+```{r subset of metadata for field, trost or valdis}
+# sort table by chromatogram ID
+gmd_meta_model$chromatogram <- as.character(gmd_meta_model$chromatogram)
+gmd_meta_model_sort <- gmd_meta_model[order(gmd_meta_model$chromatogram),]
+```
+
+
+# Export final metadata tables
+```{r export final metadata tables}
+# write.table(gmd_meta_model, "output/gmd_meta_model.txt", sep="\t")
+write.table(gmd_meta_model_sort, "output/field_breeder/metabolite_meta.txt", sep="\t")
+```
+
+
+# Define subset of selected chromatograms 
+```{r subset of chromatograms}
+# select real biological samples
+gmd_values_model <- subset(gmd_values, rownames(gmd_values) %in% gmd_meta_model$chromatogram)
+dim(gmd_values_model)
+# 1403 566
+```
+
+
+# Define subset of overlapping analytes
+* SELECT: `r nrow(analytes_sel_exp_sort)` overlapping analytes regarding all TROST field experiments, WITHOUT internal standards and contaminations
+```{r subset of analytes}
+gmd_values_select <- func_get_overlapping_analytes(analytes_sel_exp_sort, gmd_values_model)
+dim(gmd_values_select)
+# 1403 115
+
+write.table(gmd_values_select, "output/field_breeder/metabolite_data.txt", sep="\t")
+```
+
+
+# Calculate percentage of NAs and plot histograms
+
+* print percentage of NAs, number of analytes with more than 40% NAs and ID of those analytes
+
+```{r calculate percentage of NAs and plot histograms}
+func_print_na_statistics(gmd_values_select, analytes_sel_exp_sort$Name)
+
+pdf("figures/field_breeder/NAs_hist_all_samples.pdf")
+func_plot_na_statistics(gmd_values_select)
+dev.off()
+```
+
+
+# Replace NAs with minimal values of dataset and calculate LOG10 of raw intensity values 
+```{r replace NAs and calc LOG10 of raw values}
+# log10 transformation (with NAs)
+gmd_values_select_log10 <- log10(gmd_values_select)
+
+# replace NAs with lowest value of dataset
+gmd_values_select_woNA <- func_replace_na_with_min_value(gmd_values_select)
+
+# log10 transformation after NA replacement -> without NAs 
+gmd_values_select_log10_woNA <- log10(gmd_values_select_woNA)
+
+sum(is.na(gmd_values_select_log10))
+sum(is.na(gmd_values_select_log10_woNA))
+
+# all
+write.table(gmd_values_select_log10, "output/field_breeder/metabolite_data_log10.txt", sep="\t")
+write.table(gmd_values_select_log10_woNA, "output/field_breeder/metabolite_data_log10_woNA.txt", sep="\t")
+```
+
+
+# Extract Batch and SequenceID
+```{r Extract Batch and SequenceID}
+gmd_meta_model_sort$BatchID <- func_get_batch_ids(gmd_meta_model_sort)
+gmd_meta_model_sort$SequenceID <- func_get_sequence_ids(gmd_meta_model_sort)
+gmd_meta_model_sort$log10_AvgAnnotated <- log10(gmd_meta_model_sort$AvgAnnotated)
+```
+
+
+# Relevel factors and create factors table
+```{r relevel factors and create factors table}
+# define tolerance factor
+# tolerance <- func_create_tolerance_factor(gmd_meta_model_sort)
+
+# create factors table for treatment, cultivar, sample_time, Dw, Fw, Is, AvgAnnotated, AvgAnnotatedLog10, BatchID, SequenceID
+factors <- func_create_factors_table_field(gmd_meta_model_sort, 
+                                     gmd_meta_model_sort$SequenceID, 
+                                     gmd_meta_model_sort$BatchID)
+
+colnames(factors)
+
+dim(factors)
+dim(gmd_meta_model_sort)
+
+write.table(factors, "output/field_breeder/factors.txt", sep="\t")
+```
+
+
+# ANOVA normalization
+```{r ANOVA normalization}
+dim(gmd_values_select_log10_woNA)
+dim(gmd_values_select_log10)
+
+# without NAs (replaced by min)
+norm_values_log10_woNA <- apply(gmd_values_select_log10_woNA, 2, RemoveFactors, sam = factors, 
+                              facs = c("genotype_name", "SequenceID", "BatchID", "log10_AvgAnnotated"), 
+                              keep = c("genotype_name"))
+
+norm_values_log10 <- apply(gmd_values_select_log10, 2, RemoveFactors, sam = factors, 
+                              facs = c("genotype_name", "SequenceID", "BatchID", "log10_AvgAnnotated"), 
+                              keep = "genotype_name")
+
+sum(is.na(norm_values_log10)) / (ncol(norm_values_log10) * nrow(norm_values_log10))*100
+# 5.4%
+
+write.table(norm_values_log10_woNA, "output/field_breeder/metabolite_data_log10_woNA_norm.txt", sep="\t")
+write.table(norm_values_log10, "output/field_breeder/metabolite_data_log10_norm.txt", sep="\t")
+```
+
+
+# PCA
+## PCA TROST field and breeder trials
+```{r PCA TROST field and breeder trials}
+
+gmd_values_log10_prep <- prep(gmd_values_select_log10, scale = "none", center = F) # before normalization
+norm_values_log10_prep <- prep(norm_values_log10, scale = "none", center = FALSE) # after normalization (with NA)
+
+gmd_values_log10_prep_rnipals <- pca(gmd_values_log10_prep, nPcs = 5, method="rnipals")
+norm_values_log10_prep_rnipals <- pca(norm_values_log10_prep, nPcs = 5, method="rnipals")
+
+# complete observations of TROST data
+compObs <- norm_values_log10_prep_rnipals@completeObs
+dim(compObs)
+
+# export normalized values with complete observations (no NAs) for model
+write.table(compObs, "output/field_breeder/metabolite_data_log10_norm_completeObs.txt", sep="\t")
+```
+
+
+## PCA plots
+```{r PCA plots}
+pdf("figures/field_breeder/PCA_plot.pdf")
+# trial effect
+# before normalization
+palette(heike_palette_7)
+pairs(gmd_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$trial_2)
+plot(gmd_values_log10_prep_rnipals@scores[,1],
+     gmd_values_log10_prep_rnipals@scores[,2], 
+     col = gmd_meta_model_sort$trial_2, pch = 19,
+     main = "PCA effect of trial before normalization")
+legend("topright", legend = levels(gmd_meta_model_sort$trial_2), 
+       fill = 1:7, cex = 0.8)
+
+# after normalization
+pairs(norm_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$trial_2)
+plot(norm_values_log10_prep_rnipals@scores[,1],
+     norm_values_log10_prep_rnipals@scores[,2], 
+     col = gmd_meta_model_sort$trial_2, pch = 19,
+     main = "PCA effect of trial after normalization")
+legend("bottomright", legend = levels(gmd_meta_model_sort$trial_2), 
+       fill = 1:7, cex = 0.8)
+
+# treatment effect
+palette(heike_palette_4)
+pairs(gmd_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$treatment2,
+      main = "before normalization")
+
+pairs(norm_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$treatment2,
+      main = "after normalization")
+
+plot(norm_values_log10_prep_rnipals@scores[,1],
+     norm_values_log10_prep_rnipals@scores[,2], 
+     col = gmd_meta_model_sort$treatment2, pch = 19,
+     xlab = "PC1", ylab = "PC2",
+     main = "PCA effect of treatment after normalization")
+legend("bottomright", legend = levels(gmd_meta_model_sort$treatment2), 
+       fill = 1:4, cex = 0.8)
+
+# genotype effect
+palette(rainbow(34))
+pairs(norm_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$genotype_name)
+
+# PC1 vs PC2
+plot(norm_values_log10_prep_rnipals@scores[,1],
+     norm_values_log10_prep_rnipals@scores[,2], 
+     col = gmd_meta_model_sort$genotype_name, pch = 19,
+     main = "PCA effect of genotype after normalization")
+legend("bottomright", legend = levels(gmd_meta_model_sort$genotype_name), 
+       fill = 1:34, cex = 0.6)
+
+# PC1 vs PC3
+plot(norm_values_log10_prep_rnipals@scores[,1],
+     norm_values_log10_prep_rnipals@scores[,3], 
+     col = gmd_meta_model_sort$genotype_name, pch = 19,
+     main = "PCA effect of genotype after normalization")
+legend("bottomright", legend = levels(gmd_meta_model_sort$genotype_name), 
+       fill = 1:34, cex = 0.6)
+
+plot(norm_values_log10_prep_rnipals@scores[,1],
+     norm_values_log10_prep_rnipals@scores[,3], 
+     col = gmd_meta_model_sort$genotype_name, pch = 19,
+     main = "PCA effect of genotype after normalization")
+text(norm_values_log10_prep_rnipals@scores[,1],
+     norm_values_log10_prep_rnipals@scores[,3], 
+     labels = gmd_meta_model_sort$genotype_name, cex=0.5)
+legend("bottomright", legend = levels(gmd_meta_model_sort$genotype_name), 
+       fill = 1:34, cex = 0.6)
+dev.off()
+```
+
+
+## PCA plot for publication
+```{r PCA plot for publication}
+
+norm_values_log10_prep_rnipals@R2
+
+pdf("figures/field_breeder/PCA_plot_for_publication_treatment.pdf", width = 7, height = 7)
+par(mar=c(4.3, 4.5, 2, 1))
+palette(heike_palette_4)
+
+func_pca_plot(norm_values_log10_prep_rnipals, 1, 2, gmd_meta_model_sort, "treatment2", 19, 1, 
+              "topleft", 1, xmin = -3, xmax = 3,
+              legend.text = c("field: control", "field: drought stress", 
+                              "agronomic trials 2011", "agronomic trials 2012"))
+dev.off()
+
+
+pdf("figures/field_breeder/PCA_plot_for_publication_genotype.pdf", width = 7, height = 7)
+par(mar=c(4.3, 4.5, 2, 1))
+palette(cols_distinct_31)
+
+# PC1 vs PC3
+func_pca_plot(norm_values_log10_prep_rnipals, 1, 3, gmd_meta_model_sort, "genotype_name", 19, 1, 
+              "topleft", 0.8, xmin = -3.5, xmax = 3,
+              legend.text = levels(gmd_meta_model_sort$genotype_name))
+
+# PC1 vs PC2
+func_pca_plot(norm_values_log10_prep_rnipals, 1, 2, gmd_meta_model_sort, "genotype_name", 19, 1, 
+              "topleft", 0.8, xmin = -3.5, xmax = 3,
+              legend.text = levels(gmd_meta_model_sort$genotype_name))
+
+# PC2 vs PC3
+func_pca_plot(norm_values_log10_prep_rnipals, 2, 3, gmd_meta_model_sort, "genotype_name", 19, 1, 
+              "topleft", 0.8, xmin = -3.5, xmax = 3,
+              legend.text = levels(gmd_meta_model_sort$genotype_name))
+dev.off()
+```
+
+
+
+
+# Save workspace and sessioninfo
+```{r save workspace}
+save.image("metabolite_data_field_and_breeder.RData")
+sessionInfo()
+```
+
