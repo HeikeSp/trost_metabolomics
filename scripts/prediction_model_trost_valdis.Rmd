@@ -1,5 +1,5 @@
 ---
-title: Prediction model with TROST and VALDIS data
+title: "Prediction model with TROST and VALDIS data"
 author: "Heike Sprenger"
 date: "March 6, 2016"
 output:
@@ -8,6 +8,7 @@ output:
     number_section: yes
     theme: cerulean
     toc: yes
+    toc_float: true
     toc_depth: 4
 ---
 
@@ -17,11 +18,15 @@ getwd()
 #setwd("D:/work/repos/trost_metabolomics")
 ```
 
+
 # Set pander and knitr options
 ```{r set pander and knitr options, message=FALSE}
 library(knitr)
 library(pander)
 library(randomForest)
+library(caret)
+library(varSelRF)
+
 # set options for pander
 panderOptions('table.split.table', 200)
 
@@ -30,7 +35,7 @@ opts_chunk$set(fig.width=5, fig.height=5, cache=FALSE, highlight = TRUE, fig.sho
 opts_knit$set(root.dir = '../')
 
 # load workspace
-# load("prediction_model_trost_valdis_2016-03-07.RData")
+# load("prediction_model_trost_valdis.RData")
 ```
 
 
@@ -46,14 +51,11 @@ source("../functions/func_load_functions_metabolite_data_analysis.R")
 
 # Paste file names with experiment_string
 ```{r paste file names with experiment_string, tidy=TRUE}
+
+# which selection of analytes should be used
+analytes_table <- "analytes_table_20exp_overlap_select_ordered"
 file_analytes_table <- paste("data/", analytes_table, ".txt", sep = "")
- 
-# file_gmd_values_select <- paste("output/", experiment_string, "/gmd_values_select.txt", sep = "")
-# file_gmd_values_select_log10 <- paste("output/", experiment_string, "/gmd_values_select_log10.txt", sep = "")
-# file_gmd_values_select_log10_woNA <- paste("output/", experiment_string, "/gmd_values_select_log10_woNA.txt", sep = "")
-# 
-# file_values_norm_log10_woOutlier <- paste("output/", experiment_string, "/values_norm_log10_woOutlier.txt", sep = "")
-# file_gmd_values_select_log10_woOutlier <- paste("output/", experiment_string, "/gmd_values_select_log10_woOutlier.txt", sep = "")
+
 ```
 
 
@@ -78,11 +80,19 @@ if (.Platform$OS.type == 'windows'){
 
 
 # Load data
-## Load phenotyper results
+## Load phenotyper results and tolerance
 this table comes from ``phenotyper_metadata.Rmd``
-```{r load phenotyper results}
+```{r load phenotyper results and tolerance}
 phenotyper_result_joined <- read.table("data/phenotyper_result_joined_with_gmd_ids.txt", 
                                        sep="\t", header = T)
+
+# tolerance
+tolerance_table <- read.table("../trost_phenotypes/output/tolerance_phenotyper_metadata_2sub.txt", 
+                        sep = "\t", header = TRUE)
+
+# relevel tolerance factors
+tolerance_table$tol_cat2_fve <- factor(tolerance_table$tol_cat2_fve, levels = c("low", "high"))
+tolerance_table$tol_cat3_fve <- factor(tolerance_table$tol_cat3_fve, levels = c("low","mid", "high"))
 ```
 
 
@@ -101,6 +111,13 @@ trost_TagList <- read.table("data/trost_TagList.txt", sep="\t", header=TRUE)
 
 trost_gmd_ids <- read.table("data/trost_gmd_ids.txt", sep="\t", header=TRUE)
 head(trost_gmd_ids)
+```
+
+
+## Load tables with GMD values
+```{r Load tables with GMD values}
+gmd_values <- read.table("data/gmd_raw_values_matrix.txt", sep = "\t", header = T, check.names = F)
+dim(gmd_values)
 ```
 
 
@@ -135,6 +152,7 @@ gmd_meta_mpi_field_2015 <- read.table("data/gmd_meta_mpi_field_2015.txt", sep="\
 ```
 
 
+# Change metadata table
 ## Bind GMD metadata
 ```{r bind GMD metadata}
 gmd_meta <- rbind(gmd_meta_mpi_field_2011, gmd_meta_mpi_field_2012, 
@@ -194,22 +212,31 @@ trial_2 <- as.factor(c(as.character(all_feld_factors_trial),
 table(trial_2)
 
 gmd_meta_model <- data.frame("trial" = trial, "trial_2" = trial_2, gmd_meta_model)
+```
 
 
-# create column with genotype class (for VALDIS lines)
+## Column for genotype class (for VALDIS lines)
+```{r column for genotype class}
+# get all names that start with AR or EA
 AxR <- which(grepl("^AR", gmd_meta_model$genotype_name))
 ExA <- which(grepl("^EA", gmd_meta_model$genotype_name))
+
 genotype_class <- as.character(gmd_meta_model$genotype_name)
 genotype_class[AxR] <- "AxR"
 genotype_class[ExA] <- "ExA"
 gmd_meta_model$genotype_class <- factor(genotype_class)
+```
 
+
+## Subset of metadata for field, TROST or VALDIS
+```{r subset of metadata for field, trost or valdis}
 # sort table by chromatogram ID
-gmd_meta_model_sort <- gmd_meta_model[order(as.character(gmd_meta_model$chromatogram)),]
+gmd_meta_model$chromatogram <- as.character(gmd_meta_model$chromatogram)
+gmd_meta_model_sort <- gmd_meta_model[order(gmd_meta_model$chromatogram),]
 
 # only the 997 samples from trost field trials
 feld_idx <- which(gmd_meta_model_sort$trial %in% levels(all_feld_factors_trial))
-feld_chrom <- droplevels(gmd_meta_model_sort$chromatogram[feld_idx])
+feld_chrom <- gmd_meta_model_sort$chromatogram[feld_idx]
 length(feld_chrom)
 
 gmd_meta_model_feld <- droplevels(gmd_meta_model_sort[feld_idx,])
@@ -217,28 +244,28 @@ table(gmd_meta_model_feld$trial_2)
 
 # only the 1532 samples from trost field and breeder trials
 trost_idx <- which(gmd_meta_model_sort$trial_2 %in% union(levels(all_feld_factors_trial), levels(year)))
-trost_chrom <- droplevels(gmd_meta_model_sort$chromatogram[trost_idx])
+trost_chrom <- gmd_meta_model_sort$chromatogram[trost_idx]
 length(trost_chrom)
 
 gmd_meta_model_trost <- droplevels(gmd_meta_model_sort[trost_idx,])
 table(gmd_meta_model_trost$trial_2)
 
-write.table(gmd_meta_model, "output/gmd_meta_model.txt", sep="\t")
-write.table(gmd_meta_model_sort, "output/gmd_meta_model_sort.txt", sep="\t")
-write.table(gmd_meta_model_feld, "output/gmd_meta_model_feld.txt", sep="\t")
-write.table(gmd_meta_model_trost, "output/gmd_meta_model_trost.txt", sep="\t")
-
-# valdis samples
+# only 1671 valdis samples
 valdis_idx <- which(gmd_meta_model_sort$trial %in% levels(valdis_factors_trial))
-valdis_chrom <- droplevels(gmd_meta_model_sort$chromatogram[valdis_idx])
+valdis_chrom <- gmd_meta_model_sort$chromatogram[valdis_idx]
 length(valdis_chrom)
+
+gmd_meta_model_valdis <- droplevels(gmd_meta_model_sort[valdis_idx,])
+dim(gmd_meta_model_valdis)
 ```
 
 
-## Load tables with GMD values
-```{r Load tables with GMD values}
-gmd_values <- read.table("data/gmd_raw_values_matrix.txt", sep = "\t", header = T, check.names = F)
-dim(gmd_values)
+## Export final metadata tables
+```{r export final metadata tables}
+write.table(gmd_meta_model, "output/prediction_model/gmd_meta_model.txt", sep="\t")
+write.table(gmd_meta_model_sort, "output/prediction_model/gmd_meta_model_sort.txt", sep="\t")
+write.table(gmd_meta_model_feld, "output/prediction_model/gmd_meta_model_feld.txt", sep="\t")
+write.table(gmd_meta_model_trost, "output/prediction_model/gmd_meta_model_trost.txt", sep="\t")
 ```
 
 
@@ -269,13 +296,13 @@ dim(gmd_values_model)
 gmd_values_select <- func_get_overlapping_analytes(analytes_sel_exp_sort, gmd_values_model)
 dim(gmd_values_select)
 
-# the first 1532 lines contain only TROST samples 
+# only the values for 1532 TROST samples 
 gmd_values_select_trost <- gmd_values_select[trost_idx, ]
 dim(gmd_values_select_trost)
 head(rownames(gmd_values_select_trost))
 
-write.table(gmd_values_select, "output/gmd_values_prediction_model.txt", sep="\t")
-write.table(gmd_values_select_trost, "output/gmd_values_trost_prediction_model.txt", sep="\t")
+write.table(gmd_values_select, "output/prediction_model/gmd_values_prediction_model.txt", sep="\t")
+write.table(gmd_values_select_trost, "output/prediction_model/gmd_values_trost_prediction_model.txt", sep="\t")
 ```
 
 
@@ -297,11 +324,11 @@ sum(is.na(gmd_values_select_log10))
 sum(is.na(gmd_values_select_log10_woNA))
 
 # all
-write.table(gmd_values_select_log10, "output/gmd_values_prediction_model_log10.txt", sep="\t")
-write.table(gmd_values_select_log10_woNA, "output/gmd_values_prediction_model_log10_woNA.txt", sep="\t")
+write.table(gmd_values_select_log10, "output/prediction_model/gmd_values_prediction_model_log10.txt", sep="\t")
+write.table(gmd_values_select_log10_woNA, "output/prediction_model/gmd_values_prediction_model_log10_woNA.txt", sep="\t")
 # trost
-write.table(gmd_values_select_trost_log10, "output/gmd_values_prediction_model_trost_log10.txt", sep="\t")
-write.table(gmd_values_select_trost_log10_woNA, "output/gmd_values_prediction_model_trost_log10_woNA.txt", sep="\t")
+write.table(gmd_values_select_trost_log10, "output/prediction_model/gmd_values_prediction_model_trost_log10.txt", sep="\t")
+write.table(gmd_values_select_trost_log10_woNA, "output/prediction_model/gmd_values_prediction_model_trost_log10_woNA.txt", sep="\t")
 ```
 
 
@@ -338,8 +365,8 @@ factors_trost <- func_create_factors_table(gmd_meta_model_trost,
 
 levels(factors_trost$genotype_class)
 
-write.table(factors, "output/factors_prediction_model.txt", sep="\t")
-write.table(factors_trost, "output/factors_prediction_model_trost.txt", sep="\t")
+write.table(factors, "output/prediction_model/factors_prediction_model.txt", sep="\t")
+write.table(factors_trost, "output/prediction_model/factors_prediction_model_trost.txt", sep="\t")
 ```
 
 
@@ -364,13 +391,14 @@ norm_values_log10 <- apply(gmd_values_select_log10, 2, RemoveFactors, sam = fact
 sum(is.na(norm_values_log10)) / (ncol(norm_values_log10) * nrow(norm_values_log10))*100
 # 4.8%
 
-write.table(norm_values_log10_woNA, "output/norm_values_log10_woNA_predicion_model.txt", sep="\t")
-write.table(norm_values_log10, "output/norm_values_log10_prediction_model.txt", sep="\t")
+write.table(norm_values_log10_woNA, "output/prediction_model/norm_values_log10_woNA_predicion_model.txt", sep="\t")
+write.table(norm_values_log10, "output/prediction_model/norm_values_log10_prediction_model.txt", sep="\t")
 ```
 
 
 # PCA
-```{r PCA}
+## PCA TROST
+```{r PCA TROST}
 # only TROST
 gmd_values_select_trost_prep <- prep(gmd_values_select_trost, scale = "none", center = F)
 
@@ -381,9 +409,11 @@ plot(gmd_values_select_trost_prep_rnipals@scores[,1],
      gmd_values_select_trost_prep_rnipals@scores[,2], 
      col = gmd_meta_model_trost$trial_2, pch=19)
 legend("bottomright", legend = levels(gmd_meta_model_trost$trial_2), fill=1:7)
+```
 
-#############################
 
+## PCA TROST and VALDIS
+```{r PCA TROST and VALDIS}
 # all TROST + VALDIS trials
 gmd_values_log10_prep <- prep(gmd_values_select_log10, scale = "none", center = FALSE) # before normalization
 norm_values_log10_prep <- prep(norm_values_log10, scale = "none", center = FALSE) # after normalization (with NA)
@@ -392,61 +422,114 @@ norm_values_log10_prep <- prep(norm_values_log10, scale = "none", center = FALSE
 gmd_values_log10_prep_rnipals <- pca(gmd_values_log10_prep, nPcs = 5, method="rnipals")
 norm_values_log10_prep_rnipals <- pca(norm_values_log10_prep, nPcs = 5, method="rnipals")
 
-write.table(norm_values_log10_prep_rnipals@completeObs,
-            "output/norm_values_log10_rnipals_completeObs.txt", sep="\t")
+compObs <- norm_values_log10_prep_rnipals@completeObs
 
+# export normalized values with complete observations (no NAs) for model
+write.table(norm_values_log10_prep_rnipals@completeObs,
+            "output/prediction_model/norm_values_log10_rnipals_completeObs.txt", sep="\t")
+```
+
+
+## PCA plots
+```{r PCA plots}
 # effect of treatment
 palette(cols_treatment)
-pairs(norm_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$treatment)
+pairs(norm_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$treatment, pch = 19)
 
 # effect of genotype
 palette(rainbow(36))
 pairs(gmd_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$genotype_class)
 pairs(norm_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$genotype_class)
+
 plot(norm_values_log10_prep_rnipals@scores[,1],
      norm_values_log10_prep_rnipals@scores[,2],
-     col = gmd_meta_model_sort$genotype_class, pch=c(17,19)[gmd_meta_model_sort$treatment])
+     col = gmd_meta_model_sort$genotype_class, 
+     pch=c(17,19)[gmd_meta_model_sort$treatment],
+     main = "PCA effect of genotype after normalization")
 text(norm_values_log10_prep_rnipals@scores[,1],
      norm_values_log10_prep_rnipals@scores[,2],
      labels = gmd_meta_model_sort$genotype_class, cex=0.4)
 legend("topright", legend = levels(gmd_meta_model_sort$genotype_class), fill=1:36, cex=0.6)
 
+
 # effect of trial
 palette(rainbow(12))
 # before normalization
 pairs(gmd_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$trial_2)
+
 plot(gmd_values_log10_prep_rnipals@scores[,1],
      gmd_values_log10_prep_rnipals@scores[,2],
-     col = gmd_meta_model_sort$trial_2, pch=19)
+     col = gmd_meta_model_sort$trial_2, pch = 19,
+     main = "PCA effect of trial before normalization")
 legend("topright", legend = levels(gmd_meta_model_sort$trial_2), fill=1:12, cex=0.6)
+
 
 # after normalization
 pairs(norm_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$trial_2)
+
 plot(norm_values_log10_prep_rnipals@scores[,1],
      norm_values_log10_prep_rnipals@scores[,2],
-     col = gmd_meta_model_sort$trial_2, pch=19)
+     col = gmd_meta_model_sort$trial_2, pch=19,
+     main = "PCA effect of trial after normalization")
 legend("topright", legend = levels(gmd_meta_model_sort$trial_2), fill=1:12, cex=0.6)
+```
+
+
+```{r loadings}
+# top6 loadings for PC2
+head(sort(norm_values_log10_prep_rnipals@loadings[,2]))
+tail(sort(norm_values_log10_prep_rnipals@loadings[,2]))
+
+# A179012 shows high loading value for PC2
+summary(norm_values_log10[,"790E11C9-30D1-40BE-A2BB-89B08A545722"])
+hist(norm_values_log10[,"790E11C9-30D1-40BE-A2BB-89B08A545722"], breaks=30)
+
+# there is a strong effect of genotype on metabolite level
+boxplot(norm_values_log10[,"790E11C9-30D1-40BE-A2BB-89B08A545722"] ~ gmd_meta_model_sort$genotype_class, las = 2)
+
+A179012_low <- which(norm_values_log10[,"790E11C9-30D1-40BE-A2BB-89B08A545722"] < 3.5)
+A179012_high <- which(norm_values_log10[,"790E11C9-30D1-40BE-A2BB-89B08A545722"] > 3.5)
+A179012_level <- rep("high", 3203)
+A179012_level[A179012_low] <- "low"
+A179012_level <- factor(A179012_level)
+table(A179012_level)
+
+palette(heike_palette_2)
+plot(norm_values_log10_prep_rnipals@scores[,1],
+     norm_values_log10_prep_rnipals@scores[,2],
+     col = A179012_level, pch = 19,
+     main = "PCA effect of A179012 level after normalization")
 ```
 
 
 # Define training and test data
 ```{r define training/test data}
-tolerance_table <- read.table("data/tolerance_phenotyper_metadata_2sub.txt", header=T, sep="\t")
+# rownames of completeObs
+compObs_chrom <- rownames(compObs)
 
-feld_data <- norm_values_log10_prep_rnipals@completeObs[feld_idx,]
-head(rownames(feld_data))
-head(gmd_meta_model_feld$chromatogram)
-
+# join gmd_meta with tolerance table
 gmd_meta_model_feld_joined <- merge(gmd_meta_model_feld, tolerance_table, 
                                     by.x = "genotype_name", by.y = "cultivar")
+# sort table by chromatogram ID
+gmd_meta_model_feld_joined <- gmd_meta_model_feld_joined[order(gmd_meta_model_feld_joined$chromatogram),]
+dim(gmd_meta_model_feld)
+dim(gmd_meta_model_feld_joined)
 
-# 913 samples (of 997) because 3 cultivars were removed!
+# only the 913 samples (of 997) from trost field trials, WITHOUT 3 cultivars
+feld_model_idx <- which(compObs_chrom %in% gmd_meta_model_feld_joined$chromatogram)
+feld_model_chrom <- compObs_chrom[feld_model_idx]
+length(feld_model_chrom)
 
+feld_model_data <- compObs[feld_model_idx,]
+dim(feld_model_data)
+head(rownames(feld_model_data))
+
+# test/train data and info
 train_idx <- which(gmd_meta_model_feld_joined$model_set=="train")
 test_idx <- which(gmd_meta_model_feld_joined$model_set=="test")
 
-train_data <- feld_data[train_idx, ]
-test_data <- feld_data[test_idx, ]
+train_data <- feld_model_data[train_idx, ]
+test_data <- feld_model_data[test_idx, ]
 colnames(train_data) = analytes_sel_exp_sort$analyteID
 colnames(test_data) = analytes_sel_exp_sort$analyteID
 
@@ -469,15 +552,16 @@ train_info_control <- subset (train_info, train_info$treatment=="control")
 test_info_control <- subset (test_info, test_info$treatment=="control")
 ```
 
-# define all data (without 3 cultivars --> model_set=="NA") and subset of all control samples
+
+# Define ALL data (without 3 cultivars --> model_set=="NA") and subset of all control samples
 ```{r all data (control)}
-all_data <- subset(feld_data, !gmd_meta_model_feld_joined$model_set=="NA")
+all_data <- subset(feld_model_data, !gmd_meta_model_feld_joined$model_set=="NA")
 colnames(all_data) = analytes_sel_exp_sort$analyteID
 
 all_info <- subset (gmd_meta_model_feld_joined, !gmd_meta_model_feld_joined$model_set=="NA")
 
 # all control samples (ohne NA -> 3 Kutlivare)
-all_data_control <- subset(feld_data, 
+all_data_control <- subset(feld_model_data, 
                            gmd_meta_model_feld_joined$treatment=="control" 
                            & !gmd_meta_model_feld_joined$model_set=="NA")
 
@@ -488,42 +572,45 @@ all_info_control <- subset (gmd_meta_model_feld_joined,
                             & !gmd_meta_model_feld_joined$model_set=="NA")
 ```
 
-# define valdis data
+
+# Define VALDIS data
 ```{r define valdis data}
 length(valdis_idx)
 # 1671
 
-valdis_data <- norm_values_log10_prep_rnipals@completeObs[valdis_idx,]
+valdis_data <- compObs[valdis_idx,]
+dim(valdis_data)
 colnames(valdis_data) = analytes_sel_exp_sort$analyteID
 
-gmd_meta_model_valdis <- droplevels(gmd_meta_model_sort[valdis_idx,])
-dim(gmd_meta_model_valdis)
+# check
+#match(rownames(valdis_data), gmd_meta_model_valdis$chromatogram)
 ```
 
 
-### random forest classification: train data with 3 classes
+# Random forest classification
+## Random forest classification: train data with 3 classes
 ```{r rf cat3 train}
-input_cat3_train <- data.frame(train_data, "tol" = train_info$tol_cat3_fve)
+input_cat3_train <- data.frame(train_data, "tol" = train_info$tol_cat3_fve, check.names = FALSE)
+#input_cat3_train <- data.frame(train_data, "tol" = train_info$tol_cat3_fve)
 levels(input_cat3_train$tol)
 
+i <- match("tol", names(input_cat3_train)) # i is index of tol column
+
 set.seed(1234)
-rf_cat3_train <- randomForest(tol~. , data=input_cat3_train, ntree=1000)
+#rf_cat3_train <- randomForest(tol~. , data=input_cat3_train, ntree=1000)
+rf_cat3_train <- randomForest(input_cat3_train[,-i], input_cat3_train[,i], ntree=1000)
 print(rf_cat3_train)
-confusionMatrix(predict(rf_cat3_train, train_data), train_info$tol_cat3_fve)
+confusionMatrix(rf_cat3_train$predicted, train_info$tol_cat3_fve)
 
 head(importance(rf_cat3_train))
 tail(sort(importance(rf_cat3_train)))
 varImpPlot(rf_cat3_train, main="")
 
 
-
 table(predict(rf_cat3_train, test_data), test_info$tol_cat3_fve)
 confusionMatrix(predict(rf_cat3_train, test_data), test_info$tol_cat3_fve)
 #table(test_info$tol_cat3_fve)
 
-# decision tree:
-confusionMatrix(table(predict(tree_cat3_train, test_data, type="class"), test_info$tol_cat3_fve))
-confusionMatrix(table(predict(tree_cat3_train_pruned, test_data, type="class"), test_info$tol_cat3_fve))
 
 #######################################
 # USED FOR FINAL TROST PROJECT REPORT #
@@ -545,10 +632,65 @@ confusionMatrix(table(predict(tree_cat3_train_pruned, test_data, type="class"), 
 ```
 
 
+### Cross-Validation
+```{r rf cat3 train CV}
+set.seed(1)
+rf_cat3_train_cv <- rfcv(train_data, train_info$tol_cat3_fve, step=0.8)
+rf_cat3_train_cv$n.var
+length(rf_cat3_train_cv$n.var)
+with(rf_cat3_train_cv, plot(n.var, error.cv, log="x", type="o", lwd=2))
+```
+
+
+## Random forest classification: all data with 3 classes
+```{r rf cat3 all}
+input_cat3_all <- data.frame(all_data, "tol" = all_info$tol_cat3_fve, check.names = FALSE)
+#input_cat3_train <- data.frame(train_data, "tol" = train_info$tol_cat3_fve)
+levels(input_cat3_all$tol)
+
+i <- match("tol", names(input_cat3_all)) # i is index of tol column
+
+set.seed(1234)
+#rf_cat3_train <- randomForest(tol~. , data=input_cat3_train, ntree=1000)
+rf_cat3_all <- randomForest(input_cat3_all[,-i], input_cat3_all[,i], ntree=1000)
+print(rf_cat3_all)
+confusionMatrix(rf_cat3_all$predicted, all_info$tol_cat3_fve)
+table(rf_cat3_all$predicted, all_info$tol_cat3_fve)
+
+head(importance(rf_cat3_all))
+tail(sort(importance(rf_cat3_all)))
+varImpPlot(rf_cat3_all, main="")
+```
+
+
+### Cross-Validation
+```{r rf cat3 all CV}
+set.seed(1)
+rf_cat3_all_cv <- rfcv(all_data, all_info$tol_cat3_fve, step=0.8)
+rf_cat3_all_cv$n.var
+length(rf_cat3_all_cv$n.var)
+with(rf_cat3_all_cv, plot(n.var, error.cv, log="x", type="o", lwd=2))
+```
+
+
+### Variable Selection (vs)
+```{r}
+set.seed(2)
+rf_cat3_all_vs <- varSelRF(all_data, all_info$tol_cat3_fve, ntree = 500, 
+                           ntreeIterat = 300, vars.drop.frac = 0.2, c.sd=1)
+rf_cat3_all_vs
+
+plot(rf_cat3_all_vs, which=1)
+plot(rf_cat3_all_vs, which=2)
+
+rf_cat3_all_vs_idx <- which(colnames(all_data) %in% rf_cat3_all_vs$selected.vars)
+```
+
+
 # Save workspace
 ```{r save workspace}
 #save.image(paste("prediction_model_trost_valdis_", Sys.Date(), ".RData", sep="") )
-save.image(paste("prediction_model_trost_valdis_2016-03-07.RData", sep="") )
+save.image(paste("prediction_model_trost_valdis.RData", sep="") )
 ```
 
 
@@ -556,3 +698,4 @@ save.image(paste("prediction_model_trost_valdis_2016-03-07.RData", sep="") )
 ```{r sessionInfo}
  sessionInfo()
 ```
+
