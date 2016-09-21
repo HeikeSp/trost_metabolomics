@@ -14,7 +14,7 @@ output:
 ## Set working directory
 ```{r set working directory}
 # setwd("D:/work/repos/trost_metabolomics")
-# setwd("~/work/repos/trost_metabolomics")
+# setwd("~/Seafile/uschi-work/repos/trost_metabolomics")
 ```
 
 [solution for issue with working directory and knitr](https://github.com/yihui/knitr/issues/277)
@@ -114,8 +114,18 @@ gmd_analytes_jki_test_2 <- func_get_gmd_analytes( func_get_experiment_id("JKI_Te
 gmd_analytes_mpi_feld_2011 <- func_get_gmd_analytes( func_get_experiment_id("MPI_Feld_2011") )
 gmd_analytes_mpi_feld_2012 <- func_get_gmd_analytes( func_get_experiment_id("MPI_Feld_2012") )
 gmd_analytes_jki_feld_2012 <- func_get_gmd_analytes( func_get_experiment_id("JKI_Feld_2012") )
+gmd_analytes_mpi_pruef_1 <- func_get_gmd_analytes( func_get_experiment_id("MPI_Pruef1") )
+gmd_analytes_mpi_pruef_2 <- func_get_gmd_analytes( func_get_experiment_id("MPI_Pruef2") )
+gmd_analytes_mpi_pruef_3 <- func_get_gmd_analytes( func_get_experiment_id("MPI_Pruef3") )
 
 # overlap
+# 5 experiments for mixomics integration
+gmd_analytes_overlap_5 <- Reduce(intersect, list(gmd_analytes_mpi_pruef_1$analyteID,
+                              gmd_analytes_mpi_pruef_3$analyteID,
+                              gmd_analytes_mpi_feld_2011$analyteID,
+                              gmd_analytes_mpi_feld_2012$analyteID,
+                              gmd_analytes_jki_feld_2012$analyteID))
+
 gmd_analytes_overlap_6 <- Reduce(intersect, list(gmd_analytes_mpi_test_1$analyteID,
                               gmd_analytes_mpi_test_2$analyteID,
                               gmd_analytes_jki_test_1$analyteID,
@@ -131,6 +141,7 @@ gmd_analytes_overlap_7 <- Reduce(intersect, list(gmd_analytes_mpi_test_1$analyte
                               gmd_analytes_mpi_feld_2012$analyteID,
                               gmd_analytes_jki_feld_2012$analyteID))
 
+length(gmd_analytes_overlap_5)
 length(gmd_analytes_overlap_6)
 length(gmd_analytes_overlap_7)
 
@@ -161,12 +172,15 @@ dim(inventory_list_part)
 #   )
 
 length(intersect(gmd_analytes$analyteID, inventory_list[,1]))
+length(intersect(gmd_analytes_overlap_5, inventory_list[,1]))
 length(intersect(gmd_analytes_overlap_6, inventory_list[,1]))
 length(intersect(gmd_analytes_overlap_7, inventory_list[,1]))
 
+inventory_list_subset_5 <- subset(inventory_list, inventory_list[,1] %in% gmd_analytes_overlap_5)
 inventory_list_subset_6 <- subset(inventory_list, inventory_list[,1] %in% gmd_analytes_overlap_6)
 inventory_list_subset_7 <- subset(inventory_list, inventory_list[,1] %in% gmd_analytes_overlap_7)
 
+write.table(inventory_list_subset_5, "data/inventory_list_subset_5exp.txt", sep = "\t", row.names = F)
 write.table(inventory_list_subset_6, "data/inventory_list_subset_6exp.txt", sep = "\t", row.names = F)
 write.table(inventory_list_subset_7, "data/inventory_list_subset_7exp.txt", sep = "\t", row.names = F)
 ```
@@ -181,7 +195,7 @@ write.table(inventory_list_subset_7, "data/inventory_list_subset_7exp.txt", sep 
 * A117006-101, Proline
 * A152002-101, Aspartic acid
 * A163001-101, Glutamic acid
-* A177004-101, Glucose
+* A177004-101, Glucose/Glucopyranose
 * A180002-101, Fructose
 * A187002-101, Fructose
 * A189002-101, Glucose
@@ -216,6 +230,10 @@ dim(gmd_analytes_inventory)
 # 2 experiments with re-watering
 experiments_2 <- c("MPI_Test1_2", "MPI_Test2")
 
+# 5 experiments used for mixomics intergation
+experiments_5 <- c("MPI_Pruef1", "MPI_Pruef3", 
+                   "MPI_Feld_2011", "MPI_Feld_2012", "JKI_Feld_2012")
+
 # 6 experiments used for publication
 experiments_6 <- c("MPI_Test1_2", "MPI_Test2", "JKI_Test1", 
                    "MPI_Feld_2011", "MPI_Feld_2012", "JKI_Feld_2012")
@@ -223,6 +241,11 @@ experiments_6 <- c("MPI_Test1_2", "MPI_Test2", "JKI_Test1",
 # 7 experiments used for PhD thesis
 experiments_7 <- c("MPI_Test1_2", "MPI_Test2", "JKI_Test1", 
                    "JKI_Test2", "MPI_Feld_2011", "MPI_Feld_2012", "JKI_Feld_2012")
+
+# 6 experiments used for prediction model --> 5 field experiments and breeder trials
+experiments_model <- c("MPI_Feld_2011", "MPI_Feld_2012", 
+                     "JKI_Feld_2012", "JKI_Feld_2013",
+                     "Dethlingen_2011", "breeder_trials")
 
 # including all TROST experiments
 experiments_15 <- c("MPI_Test1_2", "MPI_Test2", "JKI_Test1", "JKI_Test2", 
@@ -258,18 +281,25 @@ experiments_21 <- c("MPI_Test1_2", "MPI_Test2", "JKI_Test1", "JKI_Test2",
 **each single column states "yes" or "no" if analyte was annotated in a specific experiment**
 ```{r create analytes table for all experiments}
 analytes_table_2 <- func_create_analytes_table(gmd_analytes_inventory, experiments_2)
+analytes_table_5 <- func_create_analytes_table(gmd_analytes_inventory, experiments_5)
 analytes_table_6 <- func_create_analytes_table(gmd_analytes_inventory, experiments_6)
 analytes_table_7 <- func_create_analytes_table(gmd_analytes_inventory, experiments_7)
+analytes_table_model <- func_create_analytes_table(gmd_analytes_inventory, experiments_model)
 analytes_table_15 <- func_create_analytes_table(gmd_analytes_inventory, experiments_15)
 analytes_table_17 <- func_create_analytes_table(gmd_analytes_inventory, experiments_17)
 analytes_table_20 <- func_create_analytes_table(gmd_analytes_inventory, experiments_20)
 #analytes_table_21 <- func_create_analytes_table(gmd_analytes_inventory, experiments_21)
 
+write.table(analytes_table_20, "data/analytes_table_20exp.txt", sep = "\t", row.names = F)
+
 #write.table(analytes_table_21, "output/gmd_analytes_trost.txt", sep="\t", row.names = F)
 
 analytes_table_2_overlap <- subset(analytes_table_2, analytes_table_2$count_yes == 2)
+analytes_table_5_overlap <- subset(analytes_table_5, analytes_table_5$count_yes == 5)
 analytes_table_6_overlap <- subset(analytes_table_6, analytes_table_6$count_yes == 6)
 analytes_table_7_overlap <- subset(analytes_table_7, analytes_table_7$count_yes == 7)
+analytes_table_model_overlap <- subset(analytes_table_model, analytes_table_model$count_yes == 6)
+analytes_table_15_overlap <- subset(analytes_table_15, analytes_table_15$count_yes == 15)
 analytes_table_17_overlap <- subset(analytes_table_17, analytes_table_17$count_yes == 17)
 analytes_table_20_overlap <- subset(analytes_table_20, analytes_table_20$count_yes == 20)
 
@@ -277,11 +307,20 @@ analytes_table_20_overlap <- subset(analytes_table_20, analytes_table_20$count_y
 analytes_table_2_overlap_select <- subset(analytes_table_2_overlap, 
                                           analytes_table_2_overlap$select == "select")
 
+analytes_table_5_overlap_select <- subset(analytes_table_5_overlap, 
+                                          analytes_table_5_overlap$select == "select")
+
 analytes_table_6_overlap_select <- subset(analytes_table_6_overlap, 
                                           analytes_table_6_overlap$select == "select")
 
 analytes_table_7_overlap_select <- subset(analytes_table_7_overlap, 
                                           analytes_table_7_overlap$select == "select")
+
+analytes_table_model_overlap_select <- subset(analytes_table_model_overlap, 
+                                          analytes_table_model_overlap$select == "select")
+
+analytes_table_15_overlap_select <- subset(analytes_table_15_overlap, 
+                                           analytes_table_15_overlap$select == "select")
 
 analytes_table_17_overlap_select <- subset(analytes_table_17_overlap, 
                                            analytes_table_17_overlap$select == "select")
@@ -291,10 +330,16 @@ analytes_table_20_overlap_select <- subset(analytes_table_20_overlap,
 
 dim(analytes_table_2_overlap_select)
 # 173 17
+dim(analytes_table_5_overlap_select)
+# 112 20
 dim(analytes_table_6_overlap_select)
 # 110 21
 dim(analytes_table_7_overlap_select)
 # 107 22
+dim(analytes_table_model_overlap_select)
+# 115 21
+dim(analytes_table_15_overlap_select)
+# 91 30
 dim(analytes_table_17_overlap_select)
 # 81 32
 dim(analytes_table_20_overlap_select)
@@ -306,16 +351,22 @@ dim(analytes_table_20_overlap_select)
 ```{r save filtered analytes table for specific experimental sets}
 # order by FK_Analyte ID
 analytes_table_2_overlap_select_ordered <- analytes_table_2_overlap_select[order(analytes_table_2_overlap_select$FK_Analyte), ]
+analytes_table_5_overlap_select_ordered <- analytes_table_5_overlap_select[order(analytes_table_5_overlap_select$FK_Analyte), ]
 analytes_table_6_overlap_select_ordered <- analytes_table_6_overlap_select[order(analytes_table_6_overlap_select$FK_Analyte), ]
 analytes_table_7_overlap_select_ordered <- analytes_table_7_overlap_select[order(analytes_table_7_overlap_select$FK_Analyte), ]
+analytes_table_model_overlap_select_ordered <- analytes_table_model_overlap_select[order(analytes_table_model_overlap_select$FK_Analyte), ]
 analytes_table_17_overlap_select_ordered <- analytes_table_17_overlap_select[order(analytes_table_17_overlap_select$FK_Analyte), ]
 analytes_table_20_overlap_select_ordered <- analytes_table_20_overlap_select[order(analytes_table_20_overlap_select$FK_Analyte), ]
 
 write.table(analytes_table_2_overlap_select, "data/analytes_table_2exp_overlap_select.txt", 
             sep="\t", row.names = F)
+write.table(analytes_table_5_overlap_select, "data/analytes_table_5exp_overlap_select.txt", 
+            sep="\t", row.names = F)
 write.table(analytes_table_6_overlap_select, "data/analytes_table_6exp_overlap_select.txt", 
             sep="\t", row.names = F)
 write.table(analytes_table_7_overlap_select, "data/analytes_table_7exp_overlap_select.txt", 
+            sep="\t", row.names = F)
+write.table(analytes_table_model_overlap_select, "data/analytes_table_model_overlap_select.txt", 
             sep="\t", row.names = F)
 write.table(analytes_table_17_overlap_select, "data/analytes_table_17exp_overlap_select.txt", 
             sep="\t", row.names = F)
@@ -324,9 +375,13 @@ write.table(analytes_table_20_overlap_select, "data/analytes_table_20exp_overlap
 
 write.table(analytes_table_2_overlap_select_ordered, "data/analytes_table_2exp_overlap_select_ordered.txt", 
             sep="\t", row.names = F)
+write.table(analytes_table_5_overlap_select_ordered, "data/analytes_table_5exp_overlap_select_ordered.txt", 
+            sep="\t", row.names = F)
 write.table(analytes_table_6_overlap_select_ordered, "data/analytes_table_6exp_overlap_select_ordered.txt", 
             sep="\t", row.names = F)
 write.table(analytes_table_7_overlap_select_ordered, "data/analytes_table_7exp_overlap_select_ordered.txt", 
+            sep="\t", row.names = F)
+write.table(analytes_table_model_overlap_select_ordered, "data/analytes_table_model_overlap_select_ordered.txt", 
             sep="\t", row.names = F)
 write.table(analytes_table_17_overlap_select_ordered, "data/analytes_table_17exp_overlap_select_ordered.txt", 
             sep="\t", row.names = F)
