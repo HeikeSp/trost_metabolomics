@@ -8,6 +8,7 @@ output:
     number_section: yes
     theme: cerulean
     toc: yes
+    toc_float: true
     toc_depth: 4
 ---
 
@@ -29,6 +30,8 @@ library(ggplot2)
 library(corrplot)
 library(gplots)
 library(RColorBrewer)
+library(FactoMineR)
+library(psych)
 
 # set options for pander
 panderOptions('table.split.table', 200)
@@ -385,6 +388,14 @@ plot(norm_values_log10_prep_rnipals@scores[,1],
 legend("bottomright", legend = levels(gmd_meta_model_sort$treatment2), 
        fill = 1:4, cex = 0.8)
 
+plot(norm_values_log10_prep_rnipals@scores[,2],
+     norm_values_log10_prep_rnipals@scores[,4], 
+     col = gmd_meta_model_sort$treatment2, pch = 19,
+     xlab = "PC2", ylab = "PC4",
+     main = "PCA effect of treatment after normalization")
+legend("bottomright", legend = levels(gmd_meta_model_sort$treatment2), 
+       fill = 1:4, cex = 0.8)
+
 # genotype effect
 palette(rainbow(34))
 pairs(norm_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$genotype_name)
@@ -433,6 +444,16 @@ func_pca_plot(norm_values_log10_prep_rnipals, 1, 2, gmd_meta_model_sort, "treatm
                               "agronomic trials 2011", "agronomic trials 2012"))
 dev.off()
 
+pdf("figures/field_breeder/PCA_plot_for_publication_treatment_PC2-4.pdf", width = 7, height = 7)
+par(mar=c(4.3, 4.5, 2, 1))
+palette(heike_palette_4)
+
+func_pca_plot(norm_values_log10_prep_rnipals, 2, 4, gmd_meta_model_sort, "treatment2", 19, 1, 
+              "topleft", 1, 
+              legend.text = c("field: control", "field: drought stress", 
+                              "agronomic trials 2011", "agronomic trials 2012"))
+dev.off()
+
 
 pdf("figures/field_breeder/PCA_plot_for_publication_genotype.pdf", width = 7, height = 7)
 par(mar=c(4.3, 4.5, 2, 1))
@@ -455,6 +476,88 @@ func_pca_plot(norm_values_log10_prep_rnipals, 2, 3, gmd_meta_model_sort, "genoty
 dev.off()
 ```
 
+
+# Correlation matrices
+```{r correlation matrices}
+dim(norm_values_log10_woNA)
+norm_values_log10_df <- data.frame(norm_values_log10_woNA)
+colnames(norm_values_log10_df) <- analytes_sel_exp_sort$Name
+
+dim(gmd_meta_model_sort)
+trials <- levels(gmd_meta_model_sort$trial)
+trials_id <- c("F2", "A10", "A11", "A12", "A13", "A14", "A15", "A16", "A9", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "F4", "F7", "F1", "F3")
+years_for_heatmap <- c("2011", rep("2012", 8), rep("2011", 8), "2012", "2013", "2011", "2012")
+
+cols_set3 <- brewer.pal(11, "Set3")
+cols_set1 <- brewer.pal(9, "Set1")
+
+col_years_for_heatmap <- c(cols_set1[2], rep(cols_set1[3], 8), rep(cols_set1[2], 8), cols_set1[3], cols_set1[1], cols_set1[2], cols_set1[3])
+
+col_loc_for_heatmap <- c(cols_set3[1], cols_set3[2], cols_set3[3], cols_set3[4], cols_set3[5], 
+                        cols_set3[6], cols_set3[7], cols_set3[8], cols_set3[9], cols_set3[2],
+                        cols_set3[3], cols_set3[4], cols_set3[5], cols_set3[6], cols_set3[7], 
+                        cols_set3[8], cols_set3[9], cols_set3[10], cols_set3[10], cols_set3[11], cols_set3[11])
+
+# --- 1. Step: Create subsets for each experiment --- #
+
+norm_values_log10_per_exp <- split(norm_values_log10_df, gmd_meta_model_sort$trial)
+class(norm_values_log10_per_exp$`Feldanbau 2012 Buetow`)
+names(norm_values_log10_per_exp)
+
+# --- 2. Step: Create correlation matrizes - spearman (for non-normal distributed data)
+# For 
+
+# corr_list <- lapply(norm_values_log10_per_exp, function(x) corr.test(x, use = "pairwise", 
+#                                                                      method="spearman", adjust="BH", 
+#                                                                      alpha=.05, ci = TRUE))
+
+corr_list_2 <- lapply(norm_values_log10_per_exp, function(x) cor(x, use = "complete", method = "spearman"))
+
+dim(corr_list_2$dethlingen_2011)
+
+#pdf("figures/test.pdf", 10, 10)
+corrplot(corr_list_2$dethlingen_2011, order = "hclust", method = "color", tl.col = "black", tl.cex = 0.7, outline = TRUE, mar = c(1, 0.5, 2, 0.5))
+#dev.off()
+```
+
+
+# coeffRV
+```{r coeffRV}
+coeffRV(corr_list_2$mpi_feld_2011, corr_list_2$mpi_feld_2012)$rv
+coeffRV(corr_list_2$jki_feld_2012, corr_list_2$jki_feld_2013)$rv
+coeffRV(corr_list_2$mpi_feld_2012, corr_list_2$jki_feld_2013)$rv
+
+coeffRV_res <- list()
+
+for (i in trials){
+  for (j in trials){
+    coeffRV_res[[i]][j] <- coeffRV(corr_list_2[[j]], corr_list_2[[i]])$rv
+  }
+}
+
+#coeffRV_res
+
+head(unlist(coeffRV_res))
+length(unlist(coeffRV_res))
+
+coeffRV_res_mat <- matrix(unlist(coeffRV_res), ncol = 21)
+coeffRV_res_mat[1:3, 1:3]
+colnames(coeffRV_res_mat) <- rownames(coeffRV_res_mat) <- trials
+colnames(coeffRV_res_mat) <- rownames(coeffRV_res_mat) <- trials_id
+
+
+col_spec <- colorRampPalette(brewer.pal(11,"Spectral"))(100)
+col_grey <- colorRampPalette(brewer.pal(9,"Greys"))(100)
+
+corrplot(coeffRV_res_mat, order = "hclust", method = "color", tl.col = "black", tl.cex = 0.7, 
+         outline = TRUE, col=col_spec, is.corr = FALSE)
+
+pdf("figures/field_breeder/heatmap_coeffRV.pdf")
+heatmap.2(coeffRV_res_mat, col = col_grey, trace = "none", density.info = "none",
+          RowSideColors = col_years_for_heatmap,
+          ColSideColors = col_loc_for_heatmap)
+dev.off()
+```
 
 
 
