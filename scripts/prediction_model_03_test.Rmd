@@ -1,0 +1,185 @@
+---
+title: "Prediction model with metabolite data - Load Data"
+author: "Heike Sprenger"
+date: "April 14, 2016"
+output:
+  html_document:
+    highlight: tango
+    number_section: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 4
+---
+
+## Set working directory  
+```{r setwd}
+getwd()
+#setwd("D:/work/repos/trost_metabolomics")
+```
+
+
+## Set pander and knitr options
+```{r set pander and knitr options, message=FALSE}
+library(knitr)
+library(pander)
+library(randomForest)
+library(caret)
+library(varSelRF)
+
+# set options for pander
+panderOptions('table.split.table', 200)
+
+# set options for knitr
+opts_chunk$set(fig.width=5, fig.height=5, cache=FALSE, highlight = TRUE, fig.show="asis")
+opts_knit$set(root.dir = '../')
+```
+
+
+## Load workspace
+```{r load workspace}
+load("prediction_model.RData")
+```
+
+
+## Random forest classification
+### Random forest classification: train data with 3 classes
+```{r rf cat3 train}
+input_cat3_train <- data.frame(train_data, "tol" = train_info$tol_cat3_fve, check.names = FALSE)
+#input_cat3_train <- data.frame(train_data, "tol" = train_info$tol_cat3_fve)
+levels(input_cat3_train$tol)
+
+i <- match("tol", names(input_cat3_train)) # i is index of tol column
+
+set.seed(1234)
+#rf_cat3_train <- randomForest(tol~. , data=input_cat3_train, ntree=1000)
+rf_cat3_train <- randomForest(input_cat3_train[,-i], input_cat3_train[,i], ntree=1000)
+print(rf_cat3_train)
+confusionMatrix(rf_cat3_train$predicted, train_info$tol_cat3_fve)
+
+head(importance(rf_cat3_train))
+tail(sort(importance(rf_cat3_train)))
+varImpPlot(rf_cat3_train, main="")
+
+
+table(predict(rf_cat3_train, test_data), test_info$tol_cat3_fve)
+confusionMatrix(predict(rf_cat3_train, test_data), test_info$tol_cat3_fve)
+#table(test_info$tol_cat3_fve)
+
+
+#######################################
+# USED FOR FINAL TROST PROJECT REPORT #
+#######################################
+
+# 
+# ###############################
+# # with real metabolite names
+# input_cat3_train2 <- as.data.frame( cbind(train_data2, "tol"=train_info$tol_cat3_fve))
+# input_cat3_train2$tol <- train_info$tol_cat3_fve
+# levels(input_cat3_train2$tol)
+# 
+# set.seed(1234)
+# rf_cat3_train2 <- randomForest(tol~. , data=input_cat3_train2, ntree=1000)
+# print(rf_cat3_train)
+# 
+# tail(sort(importance(rf_cat3_train)))
+# varImpPlot(rf_cat3_train, main="")
+```
+
+
+### Cross-Validation
+```{r rf cat3 train CV}
+set.seed(1)
+rf_cat3_train_cv <- rfcv(train_data, train_info$tol_cat3_fve, step=0.8)
+rf_cat3_train_cv$n.var
+length(rf_cat3_train_cv$n.var)
+with(rf_cat3_train_cv, plot(n.var, error.cv, log="x", type="o", lwd=2))
+```
+
+
+## Random forest classification: all data with 3 classes
+```{r rf cat3 all}
+input_cat3_all <- data.frame(all_data, "tol" = all_info$tol_cat3_fve, check.names = FALSE)
+#input_cat3_train <- data.frame(train_data, "tol" = train_info$tol_cat3_fve)
+levels(input_cat3_all$tol)
+
+i <- match("tol", names(input_cat3_all)) # i is index of tol column
+
+set.seed(1234)
+#rf_cat3_train <- randomForest(tol~. , data=input_cat3_train, ntree=1000)
+rf_cat3_all <- randomForest(input_cat3_all[,-i], input_cat3_all[,i], ntree=1000)
+print(rf_cat3_all)
+confusionMatrix(rf_cat3_all$predicted, all_info$tol_cat3_fve)
+table(rf_cat3_all$predicted, all_info$tol_cat3_fve)
+
+head(importance(rf_cat3_all))
+tail(sort(importance(rf_cat3_all)))
+varImpPlot(rf_cat3_all, main="")
+```
+
+
+### Cross-Validation
+```{r rf cat3 all CV}
+set.seed(1)
+rf_cat3_all_cv <- rfcv(all_data, all_info$tol_cat3_fve, step=0.8)
+rf_cat3_all_cv$n.var
+length(rf_cat3_all_cv$n.var)
+with(rf_cat3_all_cv, plot(n.var, error.cv, log="x", type="o", lwd=2))
+```
+
+
+### Variable Selection (vs)
+```{r rf cat3 all VS}
+set.seed(2)
+rf_cat3_all_vs <- varSelRF(all_data, all_info$tol_cat3_fve, ntree = 500, 
+                           ntreeIterat = 300, vars.drop.frac = 0.2, c.sd=1)
+rf_cat3_all_vs
+
+plot(rf_cat3_all_vs, which=1)
+plot(rf_cat3_all_vs, which=2)
+
+rf_cat3_all_vs_idx <- which(colnames(all_data) %in% rf_cat3_all_vs$selected.vars)
+```
+
+
+## Try LOO-CV with single cultivars for test set
+
+* Idea: use 30 of 31 cultivars in training and the remaining for test
+
+```{r try LOO-CV}
+table(gmd_meta_model_feld_joined$genotype_name)
+length(levels(gmd_meta_model_feld_joined$genotype_name))
+
+genotype_levels <- levels(gmd_meta_model_feld_joined$genotype_name)
+
+loocv_accuracy <- rep(NA, 31)
+names(loocv_accuracy) <- genotype_levels
+
+for (i in genotype_levels){
+  loocv_training_data <- subset(feld_model_data, !gmd_meta_model_feld_joined$genotype_name == i)
+  loocv_test_data <- subset(feld_model_data, gmd_meta_model_feld_joined$genotype_name == i)
+  
+  loocv_training_info <- subset(gmd_meta_model_feld_joined, !gmd_meta_model_feld_joined$genotype_name == i)
+  loocv_test_info <- subset(gmd_meta_model_feld_joined, gmd_meta_model_feld_joined$genotype_name == i)
+  
+  loocv_input <- data.frame(loocv_training_data, "tol" = loocv_training_info$tol_cat3_fve, check.names = FALSE)
+  tol <- match("tol", names(loocv_input)) # i is index of tol column
+
+  set.seed(1234)
+  loocv_rf <- randomForest(loocv_input[,-tol], loocv_input[,tol], ntree=1000)
+  #table(predict(loocv_rf, loocv_test_data), loocv_test_info$tol_cat3_fve)
+  
+  # save accuracy
+  loocv_accuracy[i] <- confusionMatrix(predict(loocv_rf, loocv_test_data), 
+                                       loocv_test_info$tol_cat3_fve)$overall[1]
+}
+
+loocv_accuracy
+
+```
+
+
+## Save workspace
+```{r save workspace}
+save.image("prediction_model.RData")
+```
+

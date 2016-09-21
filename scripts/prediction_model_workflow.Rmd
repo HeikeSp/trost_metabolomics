@@ -1,0 +1,62 @@
+---
+title: "Prediction model with metabolite data - complete workflow"
+author: "Heike Sprenger"
+date: "April 14, 2016"
+output:
+  html_document:
+    highlight: tango
+    number_section: yes
+    theme: cerulean
+    toc: yes
+    toc_float: true
+    toc_depth: 4
+---
+
+# Set working directory  
+```{r set working directory}
+getwd()
+#setwd("D:/work/repos/trost_metabolomics")
+```
+
+
+# Set pander and knitr options
+```{r set options, message=FALSE}
+library(knitr)
+library(pander)
+library(randomForest)
+library(caret)
+library(varSelRF)
+
+# set options for pander
+panderOptions('table.split.table', 200)
+
+# set options for knitr
+#opts_chunk$set(fig.width=5, fig.height=5, cache=FALSE, highlight = TRUE, fig.show="asis")
+options(knitr.duplicate.label = 'allow')
+#opts_knit$set(root.dir = '../')
+
+# load workspace
+# load("prediction_model_trost_valdis.RData")
+```
+
+
+# Load and Modify Data
+```{r child='prediction_model_01_load_data.Rmd'}
+```
+
+
+# Normalize Data
+```{r child='prediction_model_02_norm_data.Rmd'}
+```
+
+
+# Prediction Model
+```{r child='prediction_model_03_test.Rmd'}
+```
+
+
+# SessionInfo
+```{r sessionInfo}
+ sessionInfo()
+```
+

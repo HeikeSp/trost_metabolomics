@@ -1,0 +1,427 @@
+---
+title: "Prediction model with metabolite data - Load Data"
+author: "Heike Sprenger"
+date: "April 14, 2016"
+output:
+  html_document:
+    highlight: tango
+    number_section: yes
+    theme: cerulean
+    toc: yes
+    toc_float: true
+    toc_depth: 4
+---
+
+## Set working directory  
+```{r setwd}
+getwd()
+#setwd("D:/work/repos/trost_metabolomics")
+```
+
+
+## Set pander and knitr options
+```{r set pander and knitr options, message=FALSE}
+library(knitr)
+library(pander)
+library(randomForest)
+library(caret)
+library(varSelRF)
+
+# set options for pander
+panderOptions('table.split.table', 200)
+
+# set options for knitr
+opts_chunk$set(fig.width=5, fig.height=5, cache=FALSE, highlight = TRUE, fig.show="asis")
+opts_knit$set(root.dir = '../')
+
+# load workspace
+# load("prediction_model.RData")
+```
+
+
+## Load workspace
+```{r load workspace}
+load("prediction_model.RData")
+```
+
+
+## Calculate percentage of NAs and plot histograms
+
+* print percentage of NAs, number of analytes with more than 40% NAs and ID of those analytes
+
+```{r calculate percentage of NAs and plot histograms}
+func_print_na_statistics(gmd_values_select, analytes_sel_exp_sort$Name)
+
+pdf("figures/prediction_model/NAs_hist_all_samples.pdf")
+func_plot_na_statistics(gmd_values_select)
+dev.off()
+
+
+# only the values for 1532 TROST samples 
+func_print_na_statistics(gmd_values_select_trost, analytes_sel_exp_sort$Name)
+
+pdf("figures/prediction_model/NAs_hist_trost_samples.pdf")
+func_plot_na_statistics(gmd_values_select_trost)
+dev.off()
+```
+
+
+## Replace NAs with minimal values of dataset and calculate LOG10 of raw intensity values 
+```{r replace NAs and calc LOG10 of raw values}
+# log10 transformation (with NAs)
+gmd_values_select_log10 <- log10(gmd_values_select)
+gmd_values_select_trost_log10 <- log10(gmd_values_select_trost)
+
+# replace NAs with lowest value of dataset
+gmd_values_select_woNA <- func_replace_na_with_min_value(gmd_values_select)
+gmd_values_select_trost_woNA <- func_replace_na_with_min_value(gmd_values_select_trost)
+
+# log10 transformation after NA replacement -> without NAs 
+gmd_values_select_log10_woNA <- log10(gmd_values_select_woNA)
+gmd_values_select_trost_log10_woNA <- log10(gmd_values_select_trost_woNA)
+
+sum(is.na(gmd_values_select_log10))
+sum(is.na(gmd_values_select_log10_woNA))
+
+# all
+write.table(gmd_values_select_log10, "output/prediction_model/gmd_values_prediction_model_log10.txt", sep="\t")
+write.table(gmd_values_select_log10_woNA, "output/prediction_model/gmd_values_prediction_model_log10_woNA.txt", sep="\t")
+# trost
+write.table(gmd_values_select_trost_log10, "output/prediction_model/gmd_values_prediction_model_trost_log10.txt", sep="\t")
+write.table(gmd_values_select_trost_log10_woNA, "output/prediction_model/gmd_values_prediction_model_trost_log10_woNA.txt", sep="\t")
+```
+
+
+## Extract Batch and SequenceID
+```{r Extract Batch and SequenceID}
+gmd_meta_model_trost$BatchID <- func_get_batch_ids(gmd_meta_model_trost)
+gmd_meta_model_trost$SequenceID <- func_get_sequence_ids(gmd_meta_model_trost)
+gmd_meta_model_trost$log10_AvgAnnotated <- log10(gmd_meta_model_trost$AvgAnnotated)
+
+gmd_meta_model_sort$BatchID <- func_get_batch_ids(gmd_meta_model_sort)
+gmd_meta_model_sort$SequenceID <- func_get_sequence_ids(gmd_meta_model_sort)
+gmd_meta_model_sort$log10_AvgAnnotated <- log10(gmd_meta_model_sort$AvgAnnotated)
+```
+
+
+## Relevel factors and create factors table
+```{r relevel factors and create factors table}
+# define tolerance factor
+tolerance <- func_create_tolerance_factor(gmd_meta_model_sort)
+tolerance_trost <- func_create_tolerance_factor(gmd_meta_model_trost)
+
+# create factors table for treatment, cultivar, sample_time, Dw, Fw, Is, AvgAnnotated, AvgAnnotatedLog10, BatchID, SequenceID
+factors <- func_create_factors_table(gmd_meta_model_sort, 
+                                     gmd_meta_model_sort$SequenceID, 
+                                     gmd_meta_model_sort$BatchID, 
+                                     tolerance)
+levels(factors$genotype_class)
+
+# only TROST data, without VALDIS
+factors_trost <- func_create_factors_table(gmd_meta_model_trost, 
+                                     gmd_meta_model_trost$SequenceID, 
+                                     gmd_meta_model_trost$BatchID, 
+                                     tolerance_trost)
+
+levels(factors_trost$genotype_class)
+
+write.table(factors, "output/prediction_model/factors_prediction_model.txt", sep="\t")
+write.table(factors_trost, "output/prediction_model/factors_prediction_model_trost.txt", sep="\t")
+```
+
+
+## ANOVA normalization: only TROST
+```{r ANOVA normalization only TROST}
+dim(gmd_values_select_trost_log10)
+
+# without NAs (replaced by min)
+norm_values_trost_log10_woNA <- apply(gmd_values_select_trost_log10_woNA, 2, RemoveFactors, sam = factors_trost, 
+                              facs = c("genotype_class", "treatment", "SequenceID", "BatchID", "log10_AvgAnnotated"), 
+                              keep = c("genotype_class", "treatment"))
+
+# with NAs
+norm_values_trost_log10 <- apply(gmd_values_select_trost_log10, 2, RemoveFactors, sam = factors_trost, 
+                              facs = c("genotype_class", "treatment", "SequenceID", "BatchID", "log10_AvgAnnotated"), 
+                              keep = c("genotype_class", "treatment"))
+
+sum(is.na(norm_values_trost_log10)) / (ncol(norm_values_trost_log10) * nrow(norm_values_trost_log10))*100
+# 5.38%
+
+write.table(norm_values_trost_log10_woNA, "output/prediction_model/norm_values_trost_log10_woNA_predicion_model.txt", sep="\t")
+write.table(norm_values_trost_log10, "output/prediction_model/norm_values_trost_log10_prediction_model.txt", sep="\t")
+```
+
+
+## ANOVA normalization: TROST and VALDIS
+```{r ANOVA normalization TROST and VALDIS}
+# all TROST + VALDIS trials, with/without NA
+# gmd_values_select_log10
+# gmd_values_select_log10_woNA
+
+dim(gmd_values_select_log10)
+
+# without NAs (replaced by min)
+norm_values_log10_woNA <- apply(gmd_values_select_log10_woNA, 2, RemoveFactors, sam = factors, 
+                              facs = c("genotype_class", "treatment", "SequenceID", "BatchID", "log10_AvgAnnotated"), 
+                              keep = c("genotype_class", "treatment"))
+
+# equivalent to all_valdis_merge_IIIc
+# with NAs
+norm_values_log10 <- apply(gmd_values_select_log10, 2, RemoveFactors, sam = factors, 
+                              facs = c("genotype_class", "treatment", "SequenceID", "BatchID", "log10_AvgAnnotated"), 
+                              keep = c("genotype_class", "treatment"))
+
+sum(is.na(norm_values_log10)) / (ncol(norm_values_log10) * nrow(norm_values_log10))*100
+# 13.93%
+
+write.table(norm_values_log10_woNA, "output/prediction_model/norm_values_log10_woNA_predicion_model.txt", sep="\t")
+write.table(norm_values_log10, "output/prediction_model/norm_values_log10_prediction_model.txt", sep="\t")
+```
+
+
+## PCA
+### PCA only TROST
+```{r PCA only TROST}
+# only TROST
+gmd_values_trost_log10_prep <- prep(gmd_values_select_trost_log10, scale = "none", center = F) # before normalization
+norm_values_trost_log10_prep <- prep(norm_values_trost_log10, scale = "none", center = FALSE) # after normalization (with NA)
+
+gmd_values_trost_log10_prep_rnipals <- pca(gmd_values_trost_log10_prep, nPcs = 5, method="rnipals")
+norm_values_trost_log10_prep_rnipals <- pca(norm_values_trost_log10_prep, nPcs = 5, method="rnipals")
+
+# complete observations of TROST data
+compObs_trost <- norm_values_trost_log10_prep_rnipals@completeObs
+dim(compObs_trost)
+
+# export normalized values with complete observations (no NAs) for model
+write.table(compObs_trost, "output/prediction_model/norm_values_trost_log10_rnipals_completeObs.txt", sep="\t")
+```
+
+
+### PCA plots only TROST
+```{r PCA plots only TROST}
+# trial effect
+# before normalization
+pairs(gmd_values_trost_log10_prep_rnipals@scores, col = gmd_meta_model_trost$trial_2)
+plot(gmd_values_trost_log10_prep_rnipals@scores[,1],
+     gmd_values_trost_log10_prep_rnipals@scores[,2], 
+     col = gmd_meta_model_trost$trial_2, pch = 19,
+     main = "PCA effect of trial before normalization")
+legend("topright", legend = levels(gmd_meta_model_trost$trial_2), 
+       fill = 1:7, cex = 0.8)
+
+# after normalization
+pairs(norm_values_trost_log10_prep_rnipals@scores, col = gmd_meta_model_trost$trial_2)
+plot(norm_values_trost_log10_prep_rnipals@scores[,1],
+     norm_values_trost_log10_prep_rnipals@scores[,2], 
+     col = gmd_meta_model_trost$trial_2, pch = 19,
+     main = "PCA effect of trial after normalization")
+legend("bottomright", legend = levels(gmd_meta_model_trost$trial_2), 
+       fill = 1:7, cex = 0.8)
+
+# genotype effect
+palette(rainbow(34))
+pairs(norm_values_trost_log10_prep_rnipals@scores, col = gmd_meta_model_trost$genotype_class)
+
+# PC1 vs PC2
+plot(norm_values_trost_log10_prep_rnipals@scores[,1],
+     norm_values_trost_log10_prep_rnipals@scores[,2], 
+     col = gmd_meta_model_trost$genotype_class, pch = 19,
+     main = "PCA effect of genotype after normalization")
+legend("bottomright", legend = levels(gmd_meta_model_trost$genotype_class), 
+       fill = 1:34, cex = 0.6)
+
+# PC1 vs PC3
+plot(norm_values_trost_log10_prep_rnipals@scores[,1],
+     norm_values_trost_log10_prep_rnipals@scores[,3], 
+     col = gmd_meta_model_trost$genotype_class, pch = 19,
+     main = "PCA effect of genotype after normalization")
+legend("bottomright", legend = levels(gmd_meta_model_trost$genotype_class), 
+       fill = 1:34, cex = 0.6)
+```
+
+
+### PCA TROST and VALDIS
+```{r PCA TROST and VALDIS}
+# all TROST + VALDIS trials
+gmd_values_log10_prep <- prep(gmd_values_select_log10, scale = "none", center = FALSE) # before normalization
+norm_values_log10_prep <- prep(norm_values_log10, scale = "none", center = FALSE) # after normalization (with NA)
+#all_valdis_merge_IIIc_woNA_none <- prep(all_valdis_merge_IIIc_woNA, scale = "none", center = FALSE) # after normalization
+
+gmd_values_log10_prep_rnipals <- pca(gmd_values_log10_prep, nPcs = 5, method="rnipals")
+norm_values_log10_prep_rnipals <- pca(norm_values_log10_prep, nPcs = 5, method="rnipals")
+
+# complete observations of TROST and VALDIS data
+compObs <- norm_values_log10_prep_rnipals@completeObs
+dim(compObs)
+
+# export normalized values with complete observations (no NAs) for model
+write.table(compObs, "output/prediction_model/norm_values_log10_rnipals_completeObs.txt", sep="\t")
+```
+
+
+### PCA plots TROST and VALDIS
+```{r PCA plots TROST and VALDIS}
+# effect of treatment
+palette(cols_treatment)
+pairs(norm_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$treatment, pch = 19)
+
+# effect of genotype
+palette(rainbow(36))
+pairs(gmd_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$genotype_class)
+pairs(norm_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$genotype_class)
+
+plot(norm_values_log10_prep_rnipals@scores[,1],
+     norm_values_log10_prep_rnipals@scores[,2],
+     col = gmd_meta_model_sort$genotype_class, 
+     pch=c(17,19)[gmd_meta_model_sort$treatment],
+     main = "PCA effect of genotype after normalization")
+text(norm_values_log10_prep_rnipals@scores[,1],
+     norm_values_log10_prep_rnipals@scores[,2],
+     labels = gmd_meta_model_sort$genotype_class, cex=0.4)
+legend("topright", legend = levels(gmd_meta_model_sort$genotype_class), fill=1:36, cex=0.6)
+
+
+# effect of trial
+palette(rainbow(12))
+# before normalization
+pairs(gmd_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$trial_2)
+
+plot(gmd_values_log10_prep_rnipals@scores[,1],
+     gmd_values_log10_prep_rnipals@scores[,2],
+     col = gmd_meta_model_sort$trial_2, pch = 19,
+     main = "PCA effect of trial before normalization")
+legend("topright", legend = levels(gmd_meta_model_sort$trial_2), fill=1:12, cex=0.6)
+
+
+# after normalization
+pairs(norm_values_log10_prep_rnipals@scores, col = gmd_meta_model_sort$trial_2)
+
+plot(norm_values_log10_prep_rnipals@scores[,1],
+     norm_values_log10_prep_rnipals@scores[,2],
+     col = gmd_meta_model_sort$trial_2, pch=19,
+     main = "PCA effect of trial after normalization")
+legend("topright", legend = levels(gmd_meta_model_sort$trial_2), fill=1:12, cex=0.6)
+```
+
+
+### PCA Loadings
+```{r loadings}
+# top6 loadings for PC2
+head(sort(norm_values_log10_prep_rnipals@loadings[,2]))
+tail(sort(norm_values_log10_prep_rnipals@loadings[,2]))
+
+# A179012 shows high loading value for PC2
+summary(norm_values_log10[,"790E11C9-30D1-40BE-A2BB-89B08A545722"])
+hist(norm_values_log10[,"790E11C9-30D1-40BE-A2BB-89B08A545722"], breaks=30)
+
+# there is a strong effect of genotype on metabolite level
+boxplot(norm_values_log10[,"790E11C9-30D1-40BE-A2BB-89B08A545722"] ~ gmd_meta_model_sort$genotype_class, las = 2)
+
+A179012_low <- which(norm_values_log10[,"790E11C9-30D1-40BE-A2BB-89B08A545722"] < 3.5)
+A179012_high <- which(norm_values_log10[,"790E11C9-30D1-40BE-A2BB-89B08A545722"] > 3.5)
+A179012_level <- rep("high", 3203)
+A179012_level[A179012_low] <- "low"
+A179012_level <- factor(A179012_level)
+table(A179012_level)
+
+palette(heike_palette_2)
+plot(norm_values_log10_prep_rnipals@scores[,1],
+     norm_values_log10_prep_rnipals@scores[,2],
+     col = A179012_level, pch = 19,
+     main = "PCA effect of A179012 level after normalization")
+```
+
+
+## Define training and test data
+```{r define training/test data}
+# rownames of completeObs
+compObs_chrom <- rownames(compObs_trost)
+length(compObs_chrom)
+
+# join gmd_meta with tolerance table
+gmd_meta_model_feld_joined <- droplevels(merge(gmd_meta_model_feld, tolerance_table, 
+                                    by.x = "genotype_name", by.y = "cultivar"))
+# sort table by chromatogram ID
+gmd_meta_model_feld_joined <- gmd_meta_model_feld_joined[order(gmd_meta_model_feld_joined$chromatogram),]
+dim(gmd_meta_model_feld)
+dim(gmd_meta_model_feld_joined)
+
+# only the 913 samples (of 997) from trost field trials, WITHOUT 3 cultivars
+feld_model_idx <- which(compObs_chrom %in% gmd_meta_model_feld_joined$chromatogram)
+feld_model_chrom <- compObs_chrom[feld_model_idx]
+length(feld_model_chrom)
+
+feld_model_data <- compObs_trost[feld_model_idx,]
+dim(feld_model_data)
+head(rownames(feld_model_data))
+
+# test/train data and info
+train_idx <- which(gmd_meta_model_feld_joined$model_set=="train")
+test_idx <- which(gmd_meta_model_feld_joined$model_set=="test")
+
+train_data <- feld_model_data[train_idx, ]
+test_data <- feld_model_data[test_idx, ]
+colnames(train_data) = analytes_sel_exp_sort$analyteID
+colnames(test_data) = analytes_sel_exp_sort$analyteID
+
+# with short metabolite names
+#train_data2 <- all_merge_IIIc_field_exp_compObs[train_idx, ]
+#test_data2 <- all_merge_IIIc_field_exp_compObs[test_idx, ]
+#colnames(train_data2) = analytes_valdis$name_short
+#colnames(test_data2) = analytes_valdis$name_short
+
+train_info <- gmd_meta_model_feld_joined[train_idx,]
+test_info <- gmd_meta_model_feld_joined[test_idx,]
+
+## only control
+train_data_control <- subset (train_data, train_info$treatment=="control")
+test_data_control <- subset (test_data, test_info$treatment=="control")
+colnames(train_data_control) = analytes_sel_exp_sort$analyteID
+colnames(test_data_control) = analytes_sel_exp_sort$analyteID
+
+train_info_control <- subset (train_info, train_info$treatment=="control")
+test_info_control <- subset (test_info, test_info$treatment=="control")
+```
+
+
+## Define ALL data (without 3 cultivars --> model_set=="NA") and subset of all control samples
+```{r all data (control)}
+all_data <- subset(feld_model_data, !gmd_meta_model_feld_joined$model_set=="NA")
+colnames(all_data) = analytes_sel_exp_sort$analyteID
+
+all_info <- subset (gmd_meta_model_feld_joined, !gmd_meta_model_feld_joined$model_set=="NA")
+
+# all control samples (ohne NA -> 3 Kutlivare)
+all_data_control <- subset(feld_model_data, 
+                           gmd_meta_model_feld_joined$treatment=="control" 
+                           & !gmd_meta_model_feld_joined$model_set=="NA")
+
+colnames(all_data_control) = analytes_sel_exp_sort$analyteID
+
+all_info_control <- subset (gmd_meta_model_feld_joined, 
+                            gmd_meta_model_feld_joined$treatment=="control" 
+                            & !gmd_meta_model_feld_joined$model_set=="NA")
+```
+
+
+## Define VALDIS data
+```{r define valdis data}
+# length(valdis_idx)
+# # 1671
+# 
+# valdis_data <- compObs[valdis_idx,]
+# dim(valdis_data)
+# colnames(valdis_data) = analytes_sel_exp_sort$analyteID
+
+# check
+#match(rownames(valdis_data), gmd_meta_model_valdis$chromatogram)
+```
+
+
+## Save workspace
+```{r save workspace}
+save.image("prediction_model.RData")
+```
+
+
