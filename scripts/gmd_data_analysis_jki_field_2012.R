@@ -10,7 +10,7 @@ source("../functions/colors.R")
 experiment_string <- experiment_string_out <- "jki_field_2012"
 
 # which selection of analytes should be used
-analytes_table <- "analytes_table_7exp_overlap_select_ordered"
+analytes_table <- "analytes_table_7exp_overlap_select_ordered" # 7 experiments
 
 # Set threshold values for outlier detection, coefficient of variation (cv), shapiro test
 outlier_threshold = 1e-10
@@ -49,4 +49,3 @@ outfile = paste("gmd_data_analysis_", experiment_string, "_", Sys.Date(), ".html
 rmarkdown::render(input = "scripts/gmd_data_analysis.Rmd", 
                   output_format = "html_document", 
                   output_file = outfile)
-

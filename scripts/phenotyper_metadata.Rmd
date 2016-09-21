@@ -100,9 +100,17 @@ No other executions necessary anymore because tables are already existing (not t
 ### NEW
 * Execute Meta Query from ``~\work\repos\database_scripts\metaquery-all-2014-06-24.sql`` 
 
+* After update of Phenotyper DB it might be necessary to repeat this script: ``~\work\repos\database_scripts\update_plantlines_alias.sql`` because alias of some cultivars are NA
+
 ```{r meta query}
 meta_query_result_2016_02_24 <- func_use_meta_query()
 pander(head(meta_query_result_2016_02_24))
+
+# SHOULD BE ZERO!
+sum(is.na(meta_query_result_2016_02_24$genotype_name))
+# IF NOT EXECUTE ~\work\repos\database_scripts\update_plantlines_alias.sql
+# AND REPEAT gmd_complete_workflow.Rmd
+
 write.table(meta_query_result_2016_02_24, "data/meta_query_result_2016_02_24.txt", sep="\t")
 ```
 
