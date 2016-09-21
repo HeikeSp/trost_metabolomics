@@ -8,6 +8,7 @@ output:
     number_section: yes
     theme: cerulean
     toc: yes
+    toc_float: true
     toc_depth: 4
 ---
 
@@ -147,7 +148,7 @@ write.table(gmd_values_select_log10_woNA, file_gmd_values_select_log10_woNA, sep
 * print percentage of NAs, number of analytes with more than 40% NAs and ID of those analytes
 
 ```{r calculate percentage of NAs and plot histograms}
-func_print_na_statistics(gmd_values_select, analytes_sel_exp_sort)
+func_print_na_statistics(gmd_values_select, analytes_sel_exp_sort$Name)
 
 pdf(paste("figures/", experiment_string_out, "/NAs_hist.pdf", sep=""))
 func_plot_na_statistics(gmd_values_select)
@@ -450,6 +451,82 @@ legend("bottomright", levels(factors$treatment), pch=factors$treatment, cex=0.8)
 dev.off()
 
 par(mfrow=c(1,1))
+```
+
+
+# PCA scores plot Treatment
+```{r PCA scores plot treatment}
+
+pdf(paste("figures/", experiment_string_out, "/PCA_scoresplots_treatment.pdf", sep=""))
+
+palette(cols_treatment_report)
+
+pairs(pca_norm_log10_pareto_rnipals@scores[,1:5], 
+      col = factors$treatment, pch = 19, 
+      main = "Treatment effect, pareto scaling")
+
+plot(pca_norm_log10_pareto_rnipals@scores[,1], 
+     pca_norm_log10_pareto_rnipals@scores[,2], 
+     col = factors$treatment, pch = 19, main = experiment_verbose,
+     xlab = paste("PC1 (", round(pca_norm_log10_pareto_rnipals@R2[1], 3)*100, "%)", sep = ""), 
+     ylab = paste("PC2 (", round(pca_norm_log10_pareto_rnipals@R2[2], 3)*100, "%)", sep = ""))
+
+legend("topleft", 
+       legend = c("Kontrolle", "Trockenstress"), 
+       fill = cols_treatment_report)
+
+dev.off()
+```
+
+
+# PCA scores plot Genotype
+```{r PCA scores plot genotype}
+
+if(cols_genotype_factor == cols_genotype_report){
+
+  pdf(paste("figures/", experiment_string_out, "/PCA_scoresplots_genotype.pdf", sep=""))
+  
+  palette(cols_genotype_report)
+  
+  pairs(pca_norm_log10_pareto_rnipals@scores[,1:5], 
+        col = factors$genotype_class, pch = 19, 
+        main = "Genotype effect, pareto scaling")
+  
+  # PC1 vs PC2
+  plot(pca_norm_log10_pareto_rnipals@scores[,1], 
+       pca_norm_log10_pareto_rnipals@scores[,2], 
+       col = factors$genotype_class, pch = 19, main = experiment_verbose,
+       xlab = paste("PC1 (", round(pca_norm_log10_pareto_rnipals@R2[1], 3)*100, "%)", sep = ""), 
+       ylab = paste("PC2 (", round(pca_norm_log10_pareto_rnipals@R2[2], 3)*100, "%)", sep = ""))
+  
+  legend("topright", 
+         legend = c("Albatros", "AxR", "Euroresa", "ExA", "Ramses"), 
+         fill = cols_genotype_report)
+  
+  # PC2 vs PC3
+  plot(pca_norm_log10_pareto_rnipals@scores[,2], 
+       pca_norm_log10_pareto_rnipals@scores[,3], 
+       col = factors$genotype_class, pch = 19, main = experiment_verbose,
+       xlab = paste("PC2 (", round(pca_norm_log10_pareto_rnipals@R2[2], 3)*100, "%)", sep = ""), 
+       ylab = paste("PC3 (", round(pca_norm_log10_pareto_rnipals@R2[3], 3)*100, "%)", sep = ""))
+  
+  legend("topright", 
+         legend = c("Albatros", "AxR", "Euroresa", "ExA", "Ramses"), 
+         fill = cols_genotype_report)
+  
+  # PC2 vs PC4
+  plot(pca_norm_log10_pareto_rnipals@scores[,2], 
+       pca_norm_log10_pareto_rnipals@scores[,4], 
+       col = factors$genotype_class, pch = 19, main = experiment_verbose,
+       xlab = paste("PC2 (", round(pca_norm_log10_pareto_rnipals@R2[2], 3)*100, "%)", sep = ""), 
+       ylab = paste("PC4 (", round(pca_norm_log10_pareto_rnipals@R2[4], 3)*100, "%)", sep = ""))
+  
+  legend("topright", 
+         legend = c("Albatros", "AxR", "Euroresa", "ExA", "Ramses"), 
+         fill = cols_genotype_report)
+  
+  dev.off()
+}
 ```
 
 
