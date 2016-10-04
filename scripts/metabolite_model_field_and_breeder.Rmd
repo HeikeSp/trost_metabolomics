@@ -57,6 +57,9 @@ source("../functions/func_load_packages_metabolite_data_analysis.R")
 
 # load functions
 source("../functions/func_load_functions_metabolite_data_analysis.R")
+
+source("../functions/func_get_accuracy.R")
+source("../functions/func_get_subset_breeder.R")
 ```
 
 
@@ -165,9 +168,6 @@ all_breeder_info_2012 <- droplevels(subset(all_breeder_info,
                                            all_breeder_info$trial_2 == "breeder_2012"))
 
 # information for separate trials or combinations
-get_subset_breeder <- function(x = all_breeder_info, trial_name) {
-  return( droplevels( subset(x, x$trial == trial_name) ) ) }
-
 all_info_atting_2011 <- get_subset_breeder(trial_name = "Field trial Atting 2011")
 all_info_atting_2012 <- get_subset_breeder(trial_name = "Feldanbau 2012 Attingen")
 all_info_boehlendorf_2011 <- get_subset_breeder(trial_name = "Field trial Boehlendorf 2011")
@@ -186,9 +186,6 @@ all_info_windeby_2011 <- get_subset_breeder(trial_name = "Field trial Windeby 20
 all_info_windeby_2012 <- get_subset_breeder(trial_name = "Feldanbau 2012 Windeby")
 
 # locations
-get_subset_location <- function(x = all_breeder_info, loc_name) {
-  return( droplevels( subset(x, x$location == loc_name) ) ) }
-
 all_info_atting <- get_subset_location(loc_name = "Atting")
 all_info_boehlendorf <- get_subset_location(loc_name = "Boehlendorf")
 all_info_buetow <- get_subset_location(loc_name = "Buetow")
@@ -263,9 +260,6 @@ all_breeder_data_2011 <- subset(all_breeder_data, all_breeder_info$treatment2 ==
 all_breeder_data_2012 <- subset(all_breeder_data, all_breeder_info$treatment2 == "2012")
 
 # information for separate trials or combinations
-get_subset_breeder2 <- function(x = all_breeder_data, y = all_breeder_info, trial_name) {
-  return( droplevels( subset(x, y$trial == trial_name) ) ) }
-
 all_data_atting_2011 <- get_subset_breeder2(trial_name = "Field trial Atting 2011")
 all_data_atting_2012 <- get_subset_breeder2(trial_name = "Feldanbau 2012 Attingen")
 all_data_boehlendorf_2011 <- get_subset_breeder2(trial_name = "Field trial Boehlendorf 2011")
@@ -284,9 +278,6 @@ all_data_windeby_2011 <- get_subset_breeder2(trial_name = "Field trial Windeby 2
 all_data_windeby_2012 <- get_subset_breeder2(trial_name = "Feldanbau 2012 Windeby")
 
 # locations
-get_subset_location2 <- function(x = all_breeder_data, y = all_breeder_info, loc_name) {
-  return( droplevels( subset(x, y$location == loc_name) ) ) }
-
 all_data_atting <- get_subset_location2(loc_name = "Atting")
 all_data_boehlendorf <- get_subset_location2(loc_name = "Boehlendorf")
 all_data_buetow <- get_subset_location2(loc_name = "Buetow")
@@ -362,6 +353,8 @@ plot(all_info$mdrym_fve, predict(rf_all, all_data))
 abline(a=0,b=1, col="red")
 boxplot(predict(rf_all, input_all) ~ round(all_info$mdrym_fve, 3), las=2)
 sqrt(mean((all_info$mdrym_fve - predict(rf_all, all_data))^2))
+
+plot(all_info$mdrym_fve, rf_all$predicted)
 ```
 
 
@@ -545,6 +538,8 @@ table(rf_cat3_all$predicted, all_info$tol_cat3_fve)
 
 tail(importance(rf_cat3_all)[order(importance(rf_cat3_all)),])
 varImpPlot(rf_cat3_all, main="")
+
+write.table(importance(rf_cat3_all), "output/field_breeder/importance_field_rf_cat3_all.txt", sep="\t")
 ```
 
 
@@ -553,9 +548,14 @@ varImpPlot(rf_cat3_all, main="")
 set.seed(1)
 rf_cat3_all_cv <- rfcv(all_data, all_info$tol_cat3_fve, step=0.8)
 rf_cat3_all_cv$n.var
-length(rf_cat3_all_cv$n.var)
-# 19
-with(rf_cat3_all_cv, plot(n.var, error.cv, log="x", type="o", lwd=2))
+
+# plot for publication
+pdf("figures/field_breeder/metabolites_rf_cat3_all_cv_for_publication.pdf", width = 5, height = 5)
+par(mar=c(4.3, 4.5, 1, 1))
+with(rf_cat3_all_cv, plot(n.var, error.cv, log="x", type="o", lwd=2, 
+                          xlab = "number of predictors", 
+                          ylab = "5-fold cross-validation error"))
+dev.off()
 ```
 
 
@@ -563,14 +563,60 @@ with(rf_cat3_all_cv, plot(n.var, error.cv, log="x", type="o", lwd=2))
 ```{r rf cat3 all VarSel}
 set.seed(1)
 rf_cat3_all_vs <- varSelRF(all_data, all_info$tol_cat3_fve, ntree = 500, 
-                           ntreeIterat = 300, vars.drop.frac = 0.2, c.sd=1)
-rf_cat3_all_vs
+                           ntreeIterat = 300, vars.drop.frac = 0.2, c.sd = 1)
+# Setting c.sd = 1 is similar to the common “1 s.e. rule”, used in the classification trees literature
+rf_cat3_all_vs$selected.vars
+rf_cat3_all_vs$best.model.nvars
 # 24 metabolites
+
+rf_cat3_all_vs$selec.history$Number.Variables
+rf_cat3_all_vs$selec.history$OOB
 
 plot(rf_cat3_all_vs, which=1)
 plot(rf_cat3_all_vs, which=2)
 
 rf_cat3_all_vs_idx <- which(colnames(all_data) %in% rf_cat3_all_vs$selected.vars)
+```
+
+
+### Variable Selection: Plots for publication
+```{r rf cat3 all VarSel plots}
+x <- rf_cat3_all_vs
+
+pdf("figures/field_breeder/metabolites_rf_cat3_all_vs_for_publication.pdf", width = 5, height = 5)
+par(mar=c(4.3, 4.5, 1, 1))
+plot(x$selec.history$Number.Variables, x$selec.history$OOB, 
+     type = "o", log = "x", ylim = c(0, 0.5), cex.lab = 1.2,
+     col = c(rep(1,7), 2, rep(1,10)), 
+     pch = c(rep(19,7), 18, rep(19,10)),
+     cex = c(rep(1,7), 1.5, rep(1,10)),
+     xlab = "number of predictors", ylab = "Out of bag (OOB) error rate")
+
+lines(x$selec.history$Number.Variables, 
+      x$selec.history$OOB + 2 * x$selec.history$sd.OOB, lty = 2)
+lines(x$selec.history$Number.Variables,
+      x$selec.history$OOB - 2 * x$selec.history$sd.OOB, lty = 2)
+dev.off()
+
+
+# IMPORTANCE
+rf_cat3_all_imp <- importance(rf_cat3_all)
+head(rf_cat3_all_imp)
+rownames(rf_cat3_all_imp) <- analytes$Name
+rownames(rf_cat3_all_imp)[which(rownames(rf_cat3_all_imp) == "4-Hydroxyphenyl-beta-glucopyranoside")] <- "Arbutin"
+# selected variables
+rf_cat3_all_imp_vs <- rf_cat3_all_imp[rf_cat3_all_vs_idx]
+names(rf_cat3_all_imp_vs) <- rownames(rf_cat3_all_imp)[rf_cat3_all_vs_idx]
+# order by importance
+rf_cat3_all_imp_vs <- rf_cat3_all_imp_vs[order(rf_cat3_all_imp_vs, decreasing = T)]
+
+pdf("figures/field_breeder/metabolites_rf_cat3_all_imp_for_publication.pdf", width = 5, height = 5)
+par(mar=c(4.5, 17, 0.5, 0.5))
+barplot(rf_cat3_all_imp_vs[24:1], horiz = T, names = names(rf_cat3_all_imp_vs[24:1]), 
+        las = 2, xaxt = "n", cex.axis = 1.2, cex.names = 1.2)
+axis(1, las = 1)
+title(xlab = "Importance", cex.lab = 1.2, cex.axis = 1)
+dev.off()
 ```
 
 
@@ -645,11 +691,11 @@ rf_cat3_all_reduced_predicted_drym_breeder <- predict(rf_cat3_all_reduced, all_b
 confusionMatrix(table(rf_cat3_all_reduced_predicted_drym_breeder, all_breeder_info$tol_cat3_fve))$overall[1]
 # accuracy: 90%
 
-table(predict(rf_cat3_all_reduced, all_breeder_data), all_breeder_info$tol_cat3_fve)
+table(predict(rf_cat3_all_reduced, all_breeder_data_vs), all_breeder_info$tol_cat3_fve)
   #      low mid high
-  # low  137   8   11
-  # mid   19 156   25
-  # high   2   8  124
+  # low  139   7    2
+  # mid   14 152    7
+  # high   5  13  151
 
 # TRAIN data model
 confusionMatrix(table(predict(rf_cat3_train, all_breeder_data), all_breeder_info$tol_cat3_fve))$overall[1]
@@ -673,22 +719,33 @@ table( predict(rf_cat3_all, all_data_petersgroden), all_info_petersgroden$tol_ca
 table( predict(rf_cat3_all, all_data_windeby), all_info_windeby$tol_cat3_fve)
 
 # accuracy for single trials
-confusionMatrix(table( predict(rf_cat3_all, all_data_atting_2011), all_info_atting_2011$tol_cat3_fve))$overall[1]
-confusionMatrix(table( predict(rf_cat3_all, all_data_atting_2012), all_info_atting_2012$tol_cat3_fve))$overall[1]
-confusionMatrix(table( predict(rf_cat3_all, all_data_boehlendorf_2011), all_info_boehlendorf_2011$tol_cat3_fve))$overall[1]
-confusionMatrix(table( predict(rf_cat3_all, all_data_boehlendorf_2012), all_info_boehlendorf_2012$tol_cat3_fve))$overall[1]
-confusionMatrix(table( predict(rf_cat3_all, all_data_buetow_2011), all_info_buetow_2011$tol_cat3_fve))$overall[1]
-confusionMatrix(table( predict(rf_cat3_all, all_data_buetow_2012), all_info_buetow_2012$tol_cat3_fve))$overall[1]
-confusionMatrix(table( predict(rf_cat3_all, all_data_kaltenberg_2011), all_info_kaltenberg_2011$tol_cat3_fve))$overall[1]
-confusionMatrix(table( predict(rf_cat3_all, all_data_kaltenberg_2012), all_info_kaltenberg_2012$tol_cat3_fve))$overall[1]
-confusionMatrix(table( predict(rf_cat3_all, all_data_schrobenhausen_2011), all_info_schrobenhausen_2011$tol_cat3_fve))$overall[1]
-confusionMatrix(table( predict(rf_cat3_all, all_data_schrobenhausen_2012), all_info_schrobenhausen_2012$tol_cat3_fve))$overall[1]
-confusionMatrix(table( predict(rf_cat3_all, all_data_norika_2011), all_info_norika_2011$tol_cat3_fve))$overall[1]
-confusionMatrix(table( predict(rf_cat3_all, all_data_norika_2012), all_info_norika_2012$tol_cat3_fve))$overall[1]
-confusionMatrix(table( predict(rf_cat3_all, all_data_petersgroden_2011), all_info_petersgroden_2011$tol_cat3_fve))$overall[1]
-confusionMatrix(table( predict(rf_cat3_all, all_data_petersgroden_2012), all_info_petersgroden_2012$tol_cat3_fve))$overall[1]
-confusionMatrix(table( predict(rf_cat3_all, all_data_windeby_2011), all_info_windeby_2011$tol_cat3_fve))$overall[1]
-confusionMatrix(table( predict(rf_cat3_all, all_data_windeby_2012), all_info_windeby_2012$tol_cat3_fve))$overall[1]
+breeder_trial_names <- levels(all_breeder_info$trial)
+
+accuracy_single_trials_full <- func_get_accuracy(model = rf_cat3_all, 
+                                            predictors = 1:nrow(analytes), # all metabolites
+                                            trials = breeder_trial_names)
+```
+
+
+## Random forest classification REDUCED model: Predict tolerance class for single breeder trials
+```{r rf cat3 all reduced predict tolerance class for single breeder trials}
+# REDUCED MODEL
+# years 2011/12
+confusionMatrix(table( predict(rf_cat3_all_reduced, all_breeder_data_2011[,rf_cat3_all_vs_idx]),
+                       all_breeder_info_2011$tol_cat3_fve))$overall[1]
+confusionMatrix(table( predict(rf_cat3_all_reduced, all_breeder_data_2012[,rf_cat3_all_vs_idx]), 
+                       all_breeder_info_2012$tol_cat3_fve))$overall[1]
+
+# accuracy for single trials with reduced model
+accuracy_single_trials_reduced <- func_get_accuracy(model = rf_cat3_all_reduced, 
+                                                    predictors = rf_cat3_all_vs_idx, # subset of metabolites
+                                                    trials = breeder_trial_names)
+
+# combine results of full and reduced model
+accuracy_single_trials <- data.frame(accuracy_single_trials_full, accuracy_single_trials_reduced)
+
+# for publication
+write.table(accuracy_single_trials, "output/field_breeder/rf_cat3_all_accuracy_single_breeder_trials.txt", sep = "\t", quote = F)
 ```
 
 
@@ -1026,6 +1083,34 @@ plotIndiv(plsda_perf_all , comp = c(1,2),
           group = y_cat, ind.names = FALSE, 
           ellipse = TRUE, legend = TRUE, title = 'PLSDA comp 1 - 2')
 
+```
+
+
+# boxplot metabolite level ~ tolerance
+```{r boxplot metabolite level ~ tolerance}
+pdf("figures/field_breeder/metabolite_boxplot_tolerance.pdf")
+for(i in 1:ncol(all_data)){
+  boxplot(all_data[,i] ~ samplelist_field_joined$tol_cat3_fve, col = heike_palette_3, main = analytes$Name[i])
+}
+dev.off()
+
+all_data_agg_tol_trial <- aggregate(all_data, by = list(samplelist_field_joined$trial,
+                                                        samplelist_field_joined$tol_cat3_fve), median)
+
+all_data_agg_tol <- aggregate(all_data, by = list(samplelist_field_joined$tol_cat3_fve), median)
+
+dim(all_data_agg_tol_trial)
+dim(all_data_agg_tol)
+
+heatmap.2(as.matrix(all_data_agg_tol_trial[,3:117])[,rf_cat3_all_vs_idx], 
+          scale = "column", trace = "none", 
+          Rowv = "none", dendrogram = "column",
+          hclustfun = function(x) hclust(x,method = 'complete'))
+
+heatmap.2(as.matrix(all_data_agg_tol[,2:116])[,rf_cat3_all_vs_idx], 
+          scale = "column", trace = "none", 
+          Rowv = "none", dendrogram = "column",
+          hclustfun = function(x) hclust(x,method = 'average'))
 ```
 
 
