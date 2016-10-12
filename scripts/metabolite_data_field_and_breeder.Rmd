@@ -431,31 +431,50 @@ dev.off()
 
 ## PCA plot for publication
 ```{r PCA plot for publication}
-
 norm_values_log10_prep_rnipals@R2
 
-pdf("figures/field_breeder/PCA_plot_for_publication_treatment.pdf", width = 7, height = 7)
-par(mar=c(4.3, 4.5, 2, 1))
-palette(heike_palette_4)
+pdf("figures/field_breeder/metabolites_PCA_plot_for_publication_normalization.pdf", width = 14, height = 7)
+par(mar=c(4.3, 4.5, 2, 1), mfrow=c(1,2))
+palette(c("#023fa5", "#8e063b", "#11c638", "#ef9708", "#00BFFF", "#BEBEBE", "#000000")) # darkblue red green orange deepskyblue gray black
 
-func_pca_plot(norm_values_log10_prep_rnipals, 1, 2, gmd_meta_model_sort, "treatment2", 19, 1, 
-              "topleft", 1, xmin = -3, xmax = 3,
-              legend.text = c("field: control", "field: drought stress", 
-                              "agronomic trials 2011", "agronomic trials 2012"))
+func_pca_plot(gmd_values_log10_prep_rnipals, 1, 2, gmd_meta_model_sort, "trial_2", 19, 1, 
+              "topright", 1, maintext = "before correction",
+              legend.text = c("A1-A8", "A9-A16", "F2", "F4", "F7", "F1", "F3"))
+
+func_pca_plot(norm_values_log10_prep_rnipals, 1, 2, gmd_meta_model_sort, "trial_2", 19, 1, 
+              "topleft", 1, xmin = -3, xmax = 3, ymax = 3.5,
+              maintext = "after correction",
+              legend.text = c("A1-A8", "A9-A16", "F2", "F4", "F7", "F1", "F3"))
 dev.off()
 
-pdf("figures/field_breeder/PCA_plot_for_publication_treatment_PC2-4.pdf", width = 7, height = 7)
+pdf("figures/field_breeder/metabolites_PCA_plot_for_publication_treatment.pdf", width = 7, height = 7)
 par(mar=c(4.3, 4.5, 2, 1))
-palette(heike_palette_4)
+
+# source: http://www.ucl.ac.uk/~zctpep9/Archived%20webpages/Cookbook%20for%20R%20%C2%BB%20Colors%20(ggplot2).htm
+# c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+# orange,       lightblue,  green,      yellow,     blue,     red,        pink
+
+#palette(c("darkblue", "deeppink4", "forestgreen", "darkorange3"))
+palette(c("#023fa5", "#8e063b", "#11c638", "#ef9708")) # darkblue red green orange
+
+func_pca_plot(norm_values_log10_prep_rnipals, 1, 2, gmd_meta_model_sort, "treatment2", 19, 1, 
+              "topleft", 1, xmin = -3, xmax = 3, ymax = 3.5,
+              legend.text = c("experimental field trials: control", "experimental field trials: drought stress", 
+                              "agronomic field trials 2011", "agronomic field trials 2012"))
+dev.off()
+
+pdf("figures/field_breeder/metabolites_PCA_plot_for_publication_treatment_PC2-4.pdf", width = 7, height = 7)
+par(mar=c(4.3, 4.5, 2, 1))
+palette(brewer.pal(4, "Set1"))
 
 func_pca_plot(norm_values_log10_prep_rnipals, 2, 4, gmd_meta_model_sort, "treatment2", 19, 1, 
               "topleft", 1, 
-              legend.text = c("field: control", "field: drought stress", 
-                              "agronomic trials 2011", "agronomic trials 2012"))
+              legend.text = c("experimental field trials: control", "experimental field trials: drought stress", 
+                              "agronomic field trials 2011", "agronomic field trials 2012"))
 dev.off()
 
 
-pdf("figures/field_breeder/PCA_plot_for_publication_genotype.pdf", width = 7, height = 7)
+pdf("figures/field_breeder/metabolites_PCA_plot_for_publication_genotype.pdf", width = 7, height = 7)
 par(mar=c(4.3, 4.5, 2, 1))
 palette(cols_distinct_31)
 
