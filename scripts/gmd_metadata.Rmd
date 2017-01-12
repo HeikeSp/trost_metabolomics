@@ -160,6 +160,8 @@ gmd_meta_mpi_field_2015 <- func_get_gmd_metadata_all( func_get_experiment_id("MP
                                                      phenotyper_result_joined_with_gmd_ids)
 gmd_meta_jki_shelter_2015 <- func_get_gmd_metadata_all( func_get_experiment_id("JKI_Shelter_2015"), 
                                                          phenotyper_result_joined_with_gmd_ids )
+gmd_meta_jki_field_2015 <- func_get_gmd_metadata_all( func_get_experiment_id("JKI_Feld_2015"), 
+                                                         phenotyper_result_joined_with_gmd_ids )
 ```
 
 
@@ -189,6 +191,7 @@ write.table(gmd_meta_mpi_fgh_2014, "data/gmd_meta_mpi_fgh_2014.txt", sep="\t", q
 write.table(gmd_meta_mpi_fgh_2015, "data/gmd_meta_mpi_fgh_2015.txt", sep="\t", quote=FALSE)
 write.table(gmd_meta_mpi_field_2015, "data/gmd_meta_mpi_field_2015.txt", sep="\t", quote=FALSE)
 write.table(gmd_meta_jki_shelter_2015, "data/gmd_meta_jki_shelter_2015.txt", sep="\t", quote=FALSE)
+write.table(gmd_meta_jki_field_2015, "data/gmd_meta_jki_field_2015.txt", sep="\t", quote=FALSE)
 ```
 
 

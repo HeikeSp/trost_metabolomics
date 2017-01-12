@@ -1,0 +1,491 @@
+---
+title: "Merge GC-MS data from three VALDIS experiments from 2015"
+author: "Heike Sprenger"
+date: "January 3, 2017"
+output:
+  html_document:
+    highlight: tango
+    number_section: yes
+    theme: cerulean
+    toc: yes
+    toc_float: true
+    toc_depth: 4
+---
+
+
+# Set pander and knitr options
+```{r set pander and knitr options, message=FALSE}
+library(knitr)
+library(pander)
+library(colorRamps)
+
+# set options for pander
+panderOptions('table.split.table', 200)
+
+# set options for knitr
+opts_chunk$set(fig.width = 5, fig.height = 5, cache = F, 
+               highlight = T, fig.show = "asis")
+opts_knit$set(root.dir = '../')
+
+#setwd("D:/work/repos/trost_metabolomics")
+#load("merge_valdis_2015_B.RData")
+```
+
+
+# Load packages and functions for metabolite data analysis
+```{r load packages and functions for metabolite data analysis, message=FALSE, fig.show='hide'}
+# load packages
+source("../functions/func_load_packages_metabolite_data_analysis.R")
+
+# load functions
+source("../functions/func_load_functions_metabolite_data_analysis.R")
+```
+
+
+# Load data
+## Load analytes table
+this table comes from ``gmd_analytes.Rmd``
+```{r load analytes table}
+# analytes_sel_exp_sort <- read.table("data/analytes_table_21exp_overlap_select_ordered.txt", 
+#                                     sep = "\t", header = T, allowEscapes = T)
+
+analytes_sel_exp_sort <- read.table("data/analytes_table_valdis_overlap_select_ordered.txt",
+                                    sep = "\t", header = T, allowEscapes = T)
+```
+
+**The analytes table contains `r nrow(analytes_sel_exp_sort)` entries.**
+
+
+## Load sample information
+these tables come from ``gmd_data_analysis.Rmd``
+```{r load sample information}
+mpi_fgh_2015_factors <- read.table("output/mpi_fgh_2015_B/factors.txt", 
+                                     sep = "\t", header = T, row.names = 1)
+
+mpi_field_2015_factors <- read.table("output/mpi_field_2015_B/factors.txt", 
+                                     sep = "\t", header = T, row.names = 1)
+
+jki_shelter_2015_factors <- read.table("output/jki_shelter_2015_B/factors.txt", 
+                                     sep = "\t", header = T, row.names = 1)
+
+jki_field_2015_factors <- read.table("output/jki_field_2015_B/factors.txt", 
+                                    sep = "\t", header = T, row.names = 1)
+```
+
+
+## Load data: log-transformed, with NAs, selected samples and selected overlapping analytes (107)
+```{r load data}
+mpi_fgh_2015_values <- read.table("output/mpi_fgh_2015_B/gmd_values_select_log10.txt", 
+                                    sep = "\t", header = T, row.names = 1, check.names = F)
+
+mpi_field_2015_values <- read.table("output/mpi_field_2015_B/gmd_values_select_log10.txt", 
+                                    sep = "\t", header = T, row.names = 1, check.names = F)
+
+jki_shelter_2015_values <- read.table("output/jki_shelter_2015_B/gmd_values_select_log10.txt", 
+                                    sep = "\t", header = T, row.names = 1, check.names = F)
+
+jki_field_2015_values <- read.table("output/jki_field_2015_B/gmd_values_select_log10.txt",
+                                    sep = "\t", header = T, row.names = 1, check.names = F)
+```
+
+
+# Select only samples from late sampling and check cultivars
+```{r select only samples from late sampling and check cultivars}
+
+# func_select_samples <- function(dataframe, factors, values1 = "late", values2 = check_names){
+#   dataframe_subset <- droplevels(subset(dataframe, factors$sample_time == values1 & factors$cultivar %in% values2))
+# }
+# 
+# # values
+# mpi_field_2011_values_late_check <- func_select_samples(mpi_field_2011_values, mpi_field_2011_factors)
+# mpi_field_2012_values_late_check <- func_select_samples(mpi_field_2012_values, mpi_field_2012_factors)
+# jki_field_2012_values_late_check <- func_select_samples(jki_field_2012_values, jki_field_2012_factors)
+# 
+# # factors
+# mpi_field_2011_factors_late_check <- func_select_samples(mpi_field_2011_factors, mpi_field_2011_factors)
+# mpi_field_2012_factors_late_check <- func_select_samples(mpi_field_2012_factors, mpi_field_2012_factors)
+# jki_field_2012_factors_late_check <- func_select_samples(jki_field_2012_factors, jki_field_2012_factors)
+```
+
+
+# Combine data
+## Combine sample information tables by rows
+```{r combine sample information tables}
+factors <- rbind(mpi_fgh_2015_factors, 
+                 mpi_field_2015_factors, 
+                 jki_shelter_2015_factors,
+                 jki_field_2015_factors)
+dim(factors) # 1075 15
+
+length(levels(factors$BatchID)) 
+# 24
+table(factors$BatchID)
+
+levels(factors$treatment)
+# "control" "drought stress"
+
+levels(factors$sample_time)
+# only late!
+
+# reorder cultivar factor (use: check_names_ordered)
+#levels(factors$genotype_name)
+levels(factors$genotype_class)
+
+# create vector for trial name
+factors$trial <- as.factor(c(rep("mpi_fgh_2015", 238),
+                             rep("mpi_field_2015", 357),
+                             rep("jki_shelter_2015", 240),
+                             rep("jki_field_2015", 240)))
+
+# create vector for tolerance
+#factors$tolerance <- func_create_tolerance_factor(factors)
+
+write.table(factors, "output/merge_valdis_2015_B/factors.txt", sep = "\t")
+```
+
+
+## Combine value tables by rows 
+```{r combine value tables}
+# only late timepoint, check cultivars
+values <- rbind(mpi_fgh_2015_values,
+                mpi_field_2015_values,
+                jki_shelter_2015_values,
+                jki_field_2015_values)
+dim(values)
+```
+
+**The combined dataset contains `r nrow(values)` samples and `r ncol(values)` analytes.**
+
+# Calculate percentage of NAs and plot histograms
+
+```{r calculate percentage of NAs}
+
+func_print_na_statistics(values, analytes_sel_exp_sort$Name)
+
+pdf("figures/merge_valdis_2015_B/NAs_hist.pdf")
+func_plot_na_statistics(values)
+dev.off()
+```
+
+
+# Normalization: apply removeFactors function
+```{r apply removeFactors function}
+values_norm <- func_normalize(values, factors, 
+                              facs = c("genotype_class", "treatment", "SequenceID", "BatchID", "log10_AvgAnnotated"),
+                              keep = c("genotype_class", "treatment"))
+
+write.table(values_norm, "output/merge_valdis_2015_B/values_norm.txt", sep="\t")
+```
+
+
+# Look for outliers after normalization of 3 merged data sets
+```{r outlier detection}
+pdf("figures/merge_valdis_2015_B/outlier_hist.pdf")
+func_hist_outlier(values_norm, threshold=1e-6)
+dev.off()
+
+# keep possible outliers for now
+```
+
+
+#### check normal distribution --> shapiro test and histogram
+```{r check normal distribution}
+### plot histograms of normalized values per analyte
+pdf("figures/merge_valdis_2015_B/values_norm_log10_hist.pdf")
+func_plot_dist(values_norm)
+dev.off()
+
+# shapiro test for normal distribution per analyte
+res_shapiro <- func_shapiro_test(values_norm, 1e-8)
+```
+
+
+# Perform PCA to check effect of normalization
+## Prep for PCA
+```{r prep for PCA}
+# BEFORE normalization
+pca_pareto_rnipals <- func_prep_pca(values, scale_method = "pareto", center_option = FALSE, 
+                                             pc_number = 5, pca_method = "rnipals")
+
+pca_none_rnipals <- func_prep_pca(values, scale_method = "none", center_option = FALSE, 
+                                             pc_number = 5, pca_method = "rnipals")
+
+
+# AFTER normalization
+pca_norm_pareto_rnipals <- func_prep_pca(values_norm, scale_method = "pareto", center_option = FALSE, 
+                                             pc_number = 5, pca_method = "rnipals")
+
+pca_norm_none_rnipals <- func_prep_pca(values_norm, scale_method = "none", center_option = FALSE, 
+                                             pc_number = 5, pca_method = "rnipals")
+```
+
+
+## Plot effect of missing value imputation by PCA 
+```{r plot effect of missing value imputation by PCA}
+# analyte 60: proline
+sum(is.na(values_norm[,60]))
+boxplot(values_norm[,60] ~ factors$treatment) # with NAs
+
+boxplot(pca_norm_none_rnipals@completeObs[,60] ~ factors$treatment) # with NAs --> missing value imputation by PCA
+boxplot(pca_norm_pareto_rnipals@completeObs[,60] ~ factors$treatment) # with NAs --> missing value imputation by PCA
+# different scaling due to pareto scaling!
+```
+
+
+## PCA plots all trials
+```{r PCA plot all trials}
+pdf("figures/merge_valdis_2015_B/PCA_scoresplots_normalization_effect.pdf")
+par(mar=c(4.5, 4.5, 2, 0.5))
+# trial
+palette( brewer.pal(4, "Dark2"))
+func_5pairs_plot(pca_none_rnipals, factors, "trial", 19, "trial effect, before normalization")
+func_5pairs_plot(pca_norm_none_rnipals, factors, "trial", 19, "trial effect, after normalization")
+func_5pairs_plot(pca_norm_pareto_rnipals, factors, "trial", 19, "trial effect, after normalization (pareto scaling)")
+
+# genotype
+palette(cols_genotype_report)
+func_5pairs_plot(pca_none_rnipals, factors, "genotype_class", 19, "genotype effect, before normalization")
+func_5pairs_plot(pca_norm_none_rnipals, factors, "genotype_class", 19, "genotype effect, after normalization")
+func_5pairs_plot(pca_norm_pareto_rnipals, factors, "genotype_class", 19, "genotype effect, after normalization (pareto scaling)")
+
+# treatment
+palette(cols_treatment_report)
+func_5pairs_plot(pca_none_rnipals, factors, "treatment", 19, "treatment effect, before normalization")
+func_5pairs_plot(pca_norm_none_rnipals, factors, "treatment", 19, "treatment effect, after normalization")
+func_5pairs_plot(pca_norm_pareto_rnipals, factors, "treatment", 19, "treatment effect, after normalization (pareto scaling)")
+
+# trial
+palette( brewer.pal(4, "Dark2"))
+func_pca_plot_sym(pca_none_rnipals, 1, 2, factors, "trial", c(19,17), 
+              "treatment", 1.5, "topleft", 0.8, "topright", 0.8, "before normalization", 
+              legend.text1 = c("JKI Field 2015", "JKI shelter 2015", "MPI FGH 2015", "MPI field 2015"))
+
+func_pca_plot_sym(pca_norm_none_rnipals, 1, 2, factors, "trial", c(19,17), 
+              "treatment", 1.5, "bottomleft", 0.8, "topright", 0.8, "after normalization (no scaling)",
+              legend.text1 = c("JKI Field 2015", "JKI shelter 2015", "MPI FGH 2015", "MPI field 2015"))
+
+func_pca_plot_sym(pca_norm_pareto_rnipals, 1, 2, factors, "trial", c(19,17), 
+              "treatment", 1.5, "bottomleft", 0.8, "topright", 0.8, "after normalization (pareto scaling)",
+              legend.text1 = c("JKI Field 2015", "JKI shelter 2015", "MPI FGH 2015", "MPI field 2015"))
+
+# cultivar
+palette(cols_genotype_report)
+func_pca_plot(pca_norm_none_rnipals, 1, 2, factors, "genotype_class", 19, 1.5, "bottomleft", 1, maintext = "after normalization (no scaling)")
+func_pca_plot(pca_norm_none_rnipals, 1, 3, factors, "genotype_class", 19, 1.5, "bottomright", 1, maintext = "after normalization (no scaling)")
+func_pca_plot(pca_norm_pareto_rnipals, 1, 2, factors, "genotype_class", 19, 1.5, "bottomleft", 1, maintext = "after normalization (pareto scaling)")
+
+# treatment
+palette(cols_treatment_report)
+func_pca_plot(pca_norm_none_rnipals, 1, 2, factors, "treatment", 19, 1.5, "bottomleft", 1, maintext = "after normalization (no scaling)")
+func_pca_plot(pca_norm_pareto_rnipals, 1, 2, factors, "treatment", 19, 1.5, "bottomleft", 1, maintext = "after normalization (pareto scaling)")
+
+dev.off()
+```
+
+
+## PCA plots: genotype effect
+```{r PCA plots: genotype effect}
+palette(cols_genotype_report)
+
+pdf("figures/merge_valdis_2015_B/PCA_scoresplots_genotype_effect.pdf",6, 6)
+par(mar=c(4.5, 4.5, 2, 0.5))
+
+func_5pairs_plot(pca_norm_pareto_rnipals, factors, "genotype_class", 19, "genotype effect")
+func_5pairs_plot_sym(pca_norm_pareto_rnipals, factors, "genotype_class", c(19,17), "treatment", "genotype / treatment effect")
+
+# PC1 vs PC2
+func_pca_plot_sym(pca_norm_pareto_rnipals, 1, 2, factors, "genotype_class", c(19,17), 
+              "treatment", 1.5, "bottomright", 0.8, "topright", 0.8, "genotype / treatment effect")
+# PC1 vs PC3
+func_pca_plot_sym(pca_norm_pareto_rnipals, 1, 3, factors, "genotype_class", c(19,17), 
+              "treatment", 1.5, "bottomright", 0.8, "topright", 0.8, "genotype / treatment effect")
+# PC2 vs PC3
+func_pca_plot_sym(pca_norm_pareto_rnipals, 2, 3, factors, "genotype_class", c(19,17), 
+              "treatment", 1.5, "bottomleft", 0.8, "topleft", 0.8, "genotype / treatment effect")
+
+func_pca_plot(pca_norm_pareto_rnipals, 2, 3, factors, "genotype_class", 19, 1.5, "bottomleft", 1)
+func_pca_plot(pca_norm_pareto_rnipals, 2, 4, factors, "genotype_class", 19, 1.5, "topleft", 1, ymax = 3)
+func_pca_plot(pca_norm_pareto_rnipals, 3, 4, factors, "genotype_class", 19, 1.5, "topleft", 1, ymax = 3)
+func_pca_plot(pca_norm_pareto_rnipals, 3, 5, factors, "genotype_class", 19, 1.5, "topleft", 1)
+
+# NO SCALING --> shows separation of lines by PC2 (e.g. A179012)
+func_pca_plot(pca_norm_none_rnipals, 1, 2, factors, "genotype_class", 19, 1.5, "bottomleft", 1,
+              maintext = "genotype effect (no scaling)")
+func_pca_plot_sym(pca_norm_none_rnipals, 1, 2, factors, "genotype_class", c(19,17), 
+              "treatment", 1.5, "bottomright", 0.8, "topright", 0.8, 
+              maintext = "genotype / treatment effect (no scaling)", xmax = 4.5)
+dev.off()
+```
+
+
+## PCA plots: treatment effect
+```{r PCA plots: treatment effect}
+palette(cols_treatment_report)
+
+pdf("figures/merge_valdis_2015_B/PCA_scoresplots_treatment_effect.pdf",6, 6)
+par(mar=c(4.5, 4.5, 2, 0.5))
+
+func_5pairs_plot(pca_norm_pareto_rnipals, factors, "treatment", 19, "cultivar effect")
+func_5pairs_plot_sym(pca_norm_pareto_rnipals, factors, "treatment", c(19,17,15), "trial", "treatment / trial effect")
+
+# PC1 vs PC2
+func_pca_plot_sym(pca_norm_none_rnipals, 1, 2, factors, "treatment", c(19,17,15), 
+              "trial", 1.5, "bottomright", 0.8, "topright", 0.8, "treatment / trial effect")
+
+func_pca_plot_sym(pca_norm_pareto_rnipals, 1, 2, factors, "treatment", c(19,17,15), 
+              "trial", 1.5, "bottomright", 0.8, "bottomleft", 0.8, "treatment / trial effect (pareto)")
+
+func_pca_plot(pca_norm_none_rnipals, 1, 2, factors, "treatment", 19, 1.5, "bottomleft", 1)
+
+func_pca_plot(pca_norm_pareto_rnipals, 1, 2, factors, "treatment", 19, 1.5, "bottomleft", 1)
+
+dev.off()
+```
+
+
+## PCA plots: report
+```{r PCA plots: report}
+#pdf("figures/merge_valdis_2015_B/PCA_scoresplots_report.pdf", 12, 6)
+png("figures/merge_valdis_2015_B/PCA_scoresplots_report.png", 4000, 2000, res = 300)
+
+par(mar=c(4.5, 4.5, 0.5, 0.5))
+par(mfrow=c(1,2))
+
+palette(cols_treatment_report)
+func_pca_plot(pca_norm_pareto_rnipals, 1, 2, factors, "treatment", 19, 1.5, "bottomleft", 1, legend.text = c("Kontrolle", "Trockenstress"))
+
+palette(cols_genotype_report)
+func_pca_plot(pca_norm_pareto_rnipals, 2, 4, factors, "genotype_class", 19, 1.5, "topleft", 1, ymax = 3)
+
+dev.off()
+```
+
+
+# Boxplot of A179012
+```{r boxplot of A179012}
+
+which(analytes_sel_exp_sort$analyteID == "A179012-101")
+
+pdf("figures/merge_valdis_2015_B/boxplot_A179012-101.pdf", 9, 6)
+
+boxplot(values_norm[,33] ~ factors$genotype_class, 
+        las = 2, col = cols_genotype_report, 
+        ylab = "log10-normalisierter Metabolit-Gehalt")
+
+boxplot(values_norm[,33] ~ factors$genotype_name, las = 2)
+
+# sorted boxplot
+matrix_df <- data.frame(value = values_norm[, 33], 
+                        genotype = factors$genotype_name)
+    
+# sort genotypes according to median for boxplot
+matrix_df_sorted <- with(matrix_df, reorder(genotype, value, median, na.rm = T))
+
+# sorted boxplot
+boxplot(value ~ matrix_df_sorted, data = matrix_df, 
+        ylab = "log10−normalisierter Metabolit−Gehalt", 
+        las = 2, cex.lab = 1, cex.axis = 0.7, 
+        main = analytes_sel_exp_sort$Name[33],
+        col = c(rep(cols_treatment[1], 32), 
+                rep(cols_treatment[2],28)) )
+
+dev.off()
+
+#############
+
+#pdf("figures/merge_valdis_2015_B/boxplot_A179012-101_report.pdf", 12, 4)
+png("figures/merge_valdis_2015_B/boxplot_A179012-101_report.png", 5000, 1200, res=300)
+
+par(mar=c(4.5, 4.5, 0.5, 0.5))
+
+layout(matrix(c(1,2), 1, 2, byrow = TRUE),   
+       widths = c(1,2), heights = 1)
+
+boxplot(values_norm[,33] ~ factors$genotype_class, 
+        las = 2, col = cols_genotype_report, 
+        ylab = "log10-normalisierter Metabolit-Gehalt")
+
+# sorted boxplot
+boxplot(value ~ matrix_df_sorted, data = matrix_df, 
+        ylab = "log10−normalisierter Metabolit−Gehalt", 
+        las = 2, cex.lab = 1, cex.axis = 0.7, 
+        col = c(rep(cols_treatment[1], 32), 
+                rep(cols_treatment[2],28)) )
+
+dev.off()
+```
+
+
+# ANOVA, boxplots & t-test
+## ANOVA for 2 factors: treatment * cultivar (with interaction)
+```{r ANOVA with 2 factors (with interaction)}
+res_anova_treatment_genotype <- func_anova_2fac_ia(values_norm, factors, "treatment", "genotype_class", 0.01, analytes_sel_exp_sort$Name)
+
+res_anova_treatment_cultivar_sig_treatment <- which(res_anova_treatment_genotype[,1] < 0.01)
+res_anova_treatment_cultivar_sig_genotype <- which(res_anova_treatment_genotype[,2] < 0.01)
+res_anova_treatment_cultivar_sig_both <- intersect (which(res_anova_treatment_genotype[,1] < 0.01), 
+                                                    which(res_anova_treatment_genotype[,2] < 0.01))
+
+write.table(res_anova_treatment_genotype, "output/merge_valdis_2015_B/res_anova_treatment_genotype.txt", sep="\t")
+```
+
+
+## Boxplots of normalized values per analyte using 2 factors
+```{r boxplots of normalized values per analyte using 2 factors}
+pdf("figures/merge_valdis_2015_B/boxplot_treatment_genotype.pdf", width=7, height=8)
+par(mar=c(7, 4.1, 7, 2.1))
+func_boxplot_2fac(normalized_values = values_norm, 
+                  trial_factors = factors, 
+                  factor1 = "treatment", 
+                  factor2 = "genotype_class", 
+                  res_anova_adj = res_anova_treatment_genotype, 
+                  cols = cols_treatment_report,
+                  names_factors = levels(interaction(factors$treatment, factors$genotype_class)),
+                  analytes_sel_exp_sort$Name)
+
+dev.off()
+
+################################
+
+pdf("figures/merge_valdis_2015_B/boxplot_treatment.pdf")
+func_boxplot_1fac(values_norm, 
+                  factors, 
+                  "treatment", 
+                  res_anova_treatment_genotype, 
+                  cols_treatment, 
+                  analytes_sel_exp_sort$Name)
+dev.off()
+```
+
+
+
+## Sorted boxplots per genotype
+```{r sorted boxplots per genotype}
+pdf("figures/merge_valdis_2015_B/boxplot_sorted_per_genotype.pdf", 10, 6)
+func_boxplot_sorted2(values_norm, factors$genotype_name, analytes_sel_exp_sort)
+dev.off()
+
+
+pdf("figures/merge_valdis_2015_B/boxplot_genotype_class.pdf", 5, 5)
+func_boxplot_1fac(values_norm, 
+                  factors, 
+                  "genotype_class", 
+                  res_anova_treatment_genotype, 
+                  cols_genotype_report, 
+                  analytes_sel_exp_sort$Name)
+dev.off()
+
+
+pdf("figures/merge_valdis_2015_B/boxplot_sorted_per_genotype_class.pdf", 10, 6)
+func_boxplot_sorted2(values_norm, factors$genotype_class, analytes_sel_exp_sort)
+dev.off()
+```
+
+
+
+### Save workspace and sessionInfo
+```{r save workspace}
+save.image("merge_valdis_2015_B.RData")
+sessionInfo()
+```
+

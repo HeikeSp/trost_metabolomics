@@ -78,9 +78,10 @@ Execute Master Query from ``~\work\repos\database_scripts\master_query.sql``
 Execute Master Query from ``~\work\repos\database_scripts\masterquery-all_2016-02-24.sql``
 
 ```{r master query}
-master_query_result_2016_02_24 <- func_use_master_query()
-pander(head(master_query_result_2016_02_24))
-write.table(master_query_result_2016_02_24, "data/master_query_result_2016_02_24.txt", sep="\t")
+# master_query_result_2016_02_24 <- func_use_master_query()
+master_query_result_2016_10_24 <- func_use_master_query()
+pander(head(master_query_result_2016_10_24))
+write.table(master_query_result_2016_10_24, "data/master_query_result_2016_10_24.txt", sep="\t")
 ```
 
 ## Meta Query
@@ -103,25 +104,26 @@ No other executions necessary anymore because tables are already existing (not t
 * After update of Phenotyper DB it might be necessary to repeat this script: ``~\work\repos\database_scripts\update_plantlines_alias.sql`` because alias of some cultivars are NA
 
 ```{r meta query}
-meta_query_result_2016_02_24 <- func_use_meta_query()
-pander(head(meta_query_result_2016_02_24))
+# meta_query_result_2016_02_24 <- func_use_meta_query()
+meta_query_result_2016_10_24 <- func_use_meta_query()
+pander(head(meta_query_result_2016_10_24))
 
 # SHOULD BE ZERO!
-sum(is.na(meta_query_result_2016_02_24$genotype_name))
+sum(is.na(meta_query_result_2016_10_24$genotype_name))
 # IF NOT EXECUTE ~\work\repos\database_scripts\update_plantlines_alias.sql
 # AND REPEAT gmd_complete_workflow.Rmd
 
-write.table(meta_query_result_2016_02_24, "data/meta_query_result_2016_02_24.txt", sep="\t")
+write.table(meta_query_result_2016_10_24, "data/meta_query_result_2016_10_24.txt", sep="\t")
 ```
 
 
 ## Dimensions of both result tables and missing IDs in master_query_result
 ```{r dimensions of both result tables}
-dim(master_query_result_2016_02_24)
-# 4788 12
-dim(meta_query_result_2016_02_24)
-# 4790 13
-setdiff(meta_query_result_2016_02_24$GMD_id, master_query_result_2016_02_24$GMD_id)
+dim(master_query_result_2016_10_24)
+# 5672 12
+dim(meta_query_result_2016_10_24)
+# 5674 13
+setdiff(meta_query_result_2016_10_24$GMD_id, master_query_result_2016_10_24$GMD_id)
 # "12073ia_11" "13129if_38"
 ```
 
@@ -139,11 +141,11 @@ setdiff(meta_query_result_2016_02_24$GMD_id, master_query_result_2016_02_24$GMD_
 ## Join both result tables
 ```{r join both result tables}
 # join by gmd_id
-phenotyper_result_joined <- join(meta_query_result_2016_02_24, 
-                                 master_query_result_2016_02_24, 
+phenotyper_result_joined <- join(meta_query_result_2016_10_24, 
+                                 master_query_result_2016_10_24, 
                                  by = "GMD_id" )
 dim(phenotyper_result_joined)
-# 4790 24
+# 5674 24
 
 write.table(phenotyper_result_joined, "data/phenotyper_result_joined.txt", sep="\t")
 ```

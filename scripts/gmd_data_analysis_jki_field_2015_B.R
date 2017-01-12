@@ -7,11 +7,15 @@ source("../functions/colors.R")
 
 # Set variables specific for experiment
 # Set experiment string for file names
-experiment_string <- experiment_string_out <- "mpi_fgh_2015"
-experiment_verbose <- "FGH MPIMP Golm 2015"
+experiment_string <- "jki_field_2015"
+experiment_string_out <- "jki_field_2015_B"
+experiment_verbose <- "JKI Feld 2015"
 
 # which selection of analytes should be used
-analytes_table <- "analytes_table_20exp_overlap_select_ordered"
+# analytes_table <- "analytes_table_21exp_overlap_select_ordered" # --> overlap of 71 analytes (TROST + VALDIS)
+analytes_table <- "analytes_table_valdis_overlap_select_ordered" # --> overlap of 85 analytes (only VALDIS)
+# analytes_table <- "analytes_table_2014_valdis_overlap_select_ordered" # --> overlap of 125 analytes (only VALDIS 2014)
+# analytes_table <- "analytes_table_2015_valdis_overlap_select_ordered" # --> overlap of 99 analytes (only VALDIS 2015)
 
 # Set threshold values for outlier detection, coefficient of variation (cv), shapiro test
 outlier_threshold = 1e-10
@@ -43,7 +47,7 @@ cols_sample_time_factor <- cols_sample_time2
 sample_names_variable <- c()
 
 # Create the output filename
-outfile = paste("gmd_data_analysis_", experiment_string, "_", Sys.Date(), ".html", sep="")
+outfile = paste("gmd_data_analysis_", experiment_string_out, "_", Sys.Date(), ".html", sep="")
 
 # Compile the document
 # knit2html(input="gmd_data_analysis.Rmd", output=outfile)

@@ -99,7 +99,7 @@ all_values <- sqlQuery(dbhandle, 'SELECT FK_Analyte,
                                       GROUP BY FK_Analyte, FK_chromatogram')
 # Change colname
 dim(all_values)
-# 1239300 3
+# 1286547 3
 
 colnames(all_values)[3] <- "value"
 head(all_values)
@@ -117,7 +117,7 @@ write.table(all_values, "data/gmd_raw_values.txt", sep="\t")
 all_values_cast <- cast(all_values, FK_chromatogram ~ FK_Analyte, value="value")
 all_values_cast <- as.data.frame(all_values_cast)
 dim(all_values_cast)
-# 6806 samples, 567 analytes
+# 7100 samples, 578 analytes
 
 # all_values_cast[1:3,1:3]
 
@@ -125,8 +125,8 @@ dim(all_values_cast)
 rownames(all_values_cast) <- all_values_cast$FK_chromatogram
 all_values_cast <- all_values_cast[, -1]
 dim(all_values_cast)
-# 6806 samples (rows)
-# 566 analytes (columns)
+# 7100 samples (rows)
+# 577 analytes (columns)
 all_values_cast[1:3,1:3]
 
 write.table(all_values_cast, "data/gmd_raw_values_matrix.txt", sep="\t")
@@ -171,6 +171,7 @@ gmd_values_mpi_fgh_2014 <- func_get_gmd_values( func_get_experiment_id("MPI_FGH_
 gmd_values_mpi_fgh_2015 <- func_get_gmd_values( func_get_experiment_id("MPI_FGH_2015") )
 gmd_values_mpi_field_2015 <- func_get_gmd_values( func_get_experiment_id("MPI_Feld_2015") )
 gmd_values_jki_shelter_2015 <- func_get_gmd_values( func_get_experiment_id("JKI_Shelter_2015") )
+gmd_values_jki_field_2015 <- func_get_gmd_values( func_get_experiment_id("JKI_Feld_2015") )
 ```
 
 
@@ -203,6 +204,7 @@ write.table(gmd_values_mpi_fgh_2014, "data/gmd_values_mpi_fgh_2014.txt", sep="\t
 write.table(gmd_values_mpi_fgh_2015, "data/gmd_values_mpi_fgh_2015.txt", sep="\t", quote=FALSE)
 write.table(gmd_values_mpi_field_2015, "data/gmd_values_mpi_field_2015.txt", sep="\t", quote=FALSE)
 write.table(gmd_values_jki_shelter_2015, "data/gmd_values_jki_shelter_2015.txt", sep="\t", quote=FALSE)
+write.table(gmd_values_jki_field_2015, "data/gmd_values_jki_field_2015.txt", sep="\t", quote=FALSE)
 ```
 
 

@@ -27,8 +27,8 @@ opts_chunk$set(fig.width = 5, fig.height = 5, cache = F,
                highlight = T, fig.show = "asis")
 opts_knit$set(root.dir = '../')
 
-#setwd("~/work/repos/trost_metabolomics")
-#load("merge_valdis_2015.RData")
+#setwd("D:/work/repos/trost_metabolomics")
+#load("merge_valdis_2015_A.RData")
 ```
 
 
@@ -46,41 +46,46 @@ source("../functions/func_load_functions_metabolite_data_analysis.R")
 ## Load analytes table
 this table comes from ``gmd_analytes.Rmd``
 ```{r load analytes table}
-analytes_sel_exp_sort <- read.table("data/analytes_table_20exp_overlap_select_ordered.txt", 
+analytes_sel_exp_sort <- read.table("data/analytes_table_21exp_overlap_select_ordered.txt", 
                                     sep = "\t", header = T, allowEscapes = T)
+
+# analytes_sel_exp_sort <- read.table("data/analytes_table_valdis_overlap_select_ordered.txt", 
+#                                     sep = "\t", header = T, allowEscapes = T)
 ```
+
+**The analytes table contains `r nrow(analytes_sel_exp_sort)` entries.**
 
 
 ## Load sample information
 these tables come from ``gmd_data_analysis.Rmd``
 ```{r load sample information}
-mpi_fgh_2015_factors <- read.table("output/mpi_fgh_2015/factors.txt", 
+mpi_fgh_2015_factors <- read.table("output/mpi_fgh_2015_A/factors.txt", 
                                      sep = "\t", header = T, row.names = 1)
 
-mpi_field_2015_factors <- read.table("output/mpi_field_2015/factors.txt", 
+mpi_field_2015_factors <- read.table("output/mpi_field_2015_A/factors.txt", 
                                      sep = "\t", header = T, row.names = 1)
 
-jki_shelter_2015_factors <- read.table("output/jki_shelter_2015/factors.txt", 
+jki_shelter_2015_factors <- read.table("output/jki_shelter_2015_A/factors.txt", 
                                      sep = "\t", header = T, row.names = 1)
 
-# jki_field_2015_factors <- read.table("output/jki_field_2015/factors.txt", 
-#                                      sep = "\t", header = T, row.names = 1)
+jki_field_2015_factors <- read.table("output/jki_field_2015_A/factors.txt", 
+                                    sep = "\t", header = T, row.names = 1)
 ```
 
 
 ## Load data: log-transformed, with NAs, selected samples and selected overlapping analytes (107)
 ```{r load data}
-mpi_fgh_2015_values <- read.table("output/mpi_fgh_2015/gmd_values_select_log10.txt", 
+mpi_fgh_2015_values <- read.table("output/mpi_fgh_2015_A/gmd_values_select_log10.txt", 
                                     sep = "\t", header = T, row.names = 1, check.names = F)
 
-mpi_field_2015_values <- read.table("output/mpi_field_2015/gmd_values_select_log10.txt", 
+mpi_field_2015_values <- read.table("output/mpi_field_2015_A/gmd_values_select_log10.txt", 
                                     sep = "\t", header = T, row.names = 1, check.names = F)
 
-jki_shelter_2015_values <- read.table("output/jki_shelter_2015/gmd_values_select_log10.txt", 
+jki_shelter_2015_values <- read.table("output/jki_shelter_2015_A/gmd_values_select_log10.txt", 
                                     sep = "\t", header = T, row.names = 1, check.names = F)
 
-# jki_field_2015_values <- read.table("output/jki_field_2015/gmd_values_select_log10.txt", 
-#                                     sep = "\t", header = T, row.names = 1, check.names = F)
+jki_field_2015_values <- read.table("output/jki_field_2015_A/gmd_values_select_log10.txt",
+                                    sep = "\t", header = T, row.names = 1, check.names = F)
 ```
 
 
@@ -107,12 +112,13 @@ jki_shelter_2015_values <- read.table("output/jki_shelter_2015/gmd_values_select
 ## Combine sample information tables by rows
 ```{r combine sample information tables}
 factors <- rbind(mpi_fgh_2015_factors, 
-                    mpi_field_2015_factors, 
-                    jki_shelter_2015_factors)
-dim(factors)
+                 mpi_field_2015_factors, 
+                 jki_shelter_2015_factors,
+                 jki_field_2015_factors)
+dim(factors) # 1075 15
 
 length(levels(factors$BatchID)) 
-# 19
+# 24
 table(factors$BatchID)
 
 levels(factors$treatment)
@@ -128,12 +134,13 @@ levels(factors$genotype_class)
 # create vector for trial name
 factors$trial <- as.factor(c(rep("mpi_fgh_2015", 238),
                              rep("mpi_field_2015", 357),
-                             rep("jki_shelter_2015", 240)))
+                             rep("jki_shelter_2015", 240),
+                             rep("jki_field_2015", 240)))
 
 # create vector for tolerance
 #factors$tolerance <- func_create_tolerance_factor(factors)
 
-write.table(factors, "output/merge_valdis_2015/factors.txt", sep = "\t")
+write.table(factors, "output/merge_valdis_2015_A/factors.txt", sep = "\t")
 ```
 
 
@@ -142,11 +149,12 @@ write.table(factors, "output/merge_valdis_2015/factors.txt", sep = "\t")
 # only late timepoint, check cultivars
 values <- rbind(mpi_fgh_2015_values,
                 mpi_field_2015_values,
-                jki_shelter_2015_values)
+                jki_shelter_2015_values,
+                jki_field_2015_values)
 dim(values)
-# 835 74
 ```
 
+**The combined dataset contains `r nrow(values)` samples and `r ncol(values)` analytes.**
 
 # Calculate percentage of NAs and plot histograms
 
@@ -154,7 +162,7 @@ dim(values)
 
 func_print_na_statistics(values, analytes_sel_exp_sort$Name)
 
-pdf("figures/merge_valdis_2015/NAs_hist.pdf")
+pdf("figures/merge_valdis_2015_A/NAs_hist.pdf")
 func_plot_na_statistics(values)
 dev.off()
 ```
@@ -166,13 +174,13 @@ values_norm <- func_normalize(values, factors,
                               facs = c("genotype_class", "treatment", "SequenceID", "BatchID", "log10_AvgAnnotated"),
                               keep = c("genotype_class", "treatment"))
 
-write.table(values_norm, "output/merge_valdis_2015/values_norm.txt", sep="\t")
+write.table(values_norm, "output/merge_valdis_2015_A/values_norm.txt", sep="\t")
 ```
 
 
 # Look for outliers after normalization of 3 merged data sets
 ```{r outlier detection}
-pdf("figures/merge_valdis_2015/outlier_hist.pdf")
+pdf("figures/merge_valdis_2015_A/outlier_hist.pdf")
 func_hist_outlier(values_norm, threshold=1e-6)
 dev.off()
 
@@ -183,7 +191,7 @@ dev.off()
 #### check normal distribution --> shapiro test and histogram
 ```{r check normal distribution}
 ### plot histograms of normalized values per analyte
-pdf("figures/merge_valdis_2015/values_norm_log10_hist.pdf")
+pdf("figures/merge_valdis_2015_A/values_norm_log10_hist.pdf")
 func_plot_dist(values_norm)
 dev.off()
 
@@ -226,10 +234,10 @@ boxplot(pca_norm_pareto_rnipals@completeObs[,60] ~ factors$treatment) # with NAs
 
 ## PCA plots all trials
 ```{r PCA plot all trials}
-pdf("figures/merge_valdis_2015/PCA_scoresplots_normalization_effect.pdf")
+pdf("figures/merge_valdis_2015_A/PCA_scoresplots_normalization_effect.pdf")
 par(mar=c(4.5, 4.5, 2, 0.5))
 # trial
-palette( brewer.pal(3, "Dark2"))
+palette( brewer.pal(4, "Dark2"))
 func_5pairs_plot(pca_none_rnipals, factors, "trial", 19, "trial effect, before normalization")
 func_5pairs_plot(pca_norm_none_rnipals, factors, "trial", 19, "trial effect, after normalization")
 func_5pairs_plot(pca_norm_pareto_rnipals, factors, "trial", 19, "trial effect, after normalization (pareto scaling)")
@@ -247,29 +255,29 @@ func_5pairs_plot(pca_norm_none_rnipals, factors, "treatment", 19, "treatment eff
 func_5pairs_plot(pca_norm_pareto_rnipals, factors, "treatment", 19, "treatment effect, after normalization (pareto scaling)")
 
 # trial
-palette( brewer.pal(3, "Dark2"))
+palette( brewer.pal(4, "Dark2"))
 func_pca_plot_sym(pca_none_rnipals, 1, 2, factors, "trial", c(19,17), 
               "treatment", 1.5, "topleft", 0.8, "topright", 0.8, "before normalization", 
-              legend.text = c("JKI shelter 2015", "MPI FGH 2015", "MPI field 2015"))
+              legend.text1 = c("JKI Field 2015", "JKI shelter 2015", "MPI FGH 2015", "MPI field 2015"))
 
 func_pca_plot_sym(pca_norm_none_rnipals, 1, 2, factors, "trial", c(19,17), 
-              "treatment", 1.5, "bottomleft", 0.8, "topright", 0.8, "after normalization",
-              legend.text = c("JKI shelter 2015", "MPI FGH 2015", "MPI field 2015"))
+              "treatment", 1.5, "bottomleft", 0.8, "topright", 0.8, "after normalization (no scaling)",
+              legend.text1 = c("JKI Field 2015", "JKI shelter 2015", "MPI FGH 2015", "MPI field 2015"))
 
 func_pca_plot_sym(pca_norm_pareto_rnipals, 1, 2, factors, "trial", c(19,17), 
-              "treatment", 1.5, "bottomleft", 0.8, "topright", 0.8, "after normalization",
-              legend.text = c("JKI shelter 2015", "MPI FGH 2015", "MPI field 2015"))
+              "treatment", 1.5, "bottomleft", 0.8, "topright", 0.8, "after normalization (pareto scaling)",
+              legend.text1 = c("JKI Field 2015", "JKI shelter 2015", "MPI FGH 2015", "MPI field 2015"))
 
 # cultivar
 palette(cols_genotype_report)
-func_pca_plot(pca_norm_none_rnipals, 1, 2, factors, "genotype_class", 19, 1.5, "bottomleft", 1)
-func_pca_plot(pca_norm_none_rnipals, 1, 3, factors, "genotype_class", 19, 1.5, "bottomright", 1)
-func_pca_plot(pca_norm_pareto_rnipals, 1, 2, factors, "genotype_class", 19, 1.5, "bottomleft", 1)
+func_pca_plot(pca_norm_none_rnipals, 1, 2, factors, "genotype_class", 19, 1.5, "bottomleft", 1, maintext = "after normalization (no scaling)")
+func_pca_plot(pca_norm_none_rnipals, 1, 3, factors, "genotype_class", 19, 1.5, "bottomright", 1, maintext = "after normalization (no scaling)")
+func_pca_plot(pca_norm_pareto_rnipals, 1, 2, factors, "genotype_class", 19, 1.5, "bottomleft", 1, maintext = "after normalization (pareto scaling)")
 
 # treatment
 palette(cols_treatment_report)
-func_pca_plot(pca_norm_none_rnipals, 1, 2, factors, "treatment", 19, 1.5, "bottomleft", 1)
-func_pca_plot(pca_norm_pareto_rnipals, 1, 2, factors, "treatment", 19, 1.5, "bottomleft", 1)
+func_pca_plot(pca_norm_none_rnipals, 1, 2, factors, "treatment", 19, 1.5, "bottomleft", 1, maintext = "after normalization (no scaling)")
+func_pca_plot(pca_norm_pareto_rnipals, 1, 2, factors, "treatment", 19, 1.5, "bottomleft", 1, maintext = "after normalization (pareto scaling)")
 
 dev.off()
 ```
@@ -279,7 +287,7 @@ dev.off()
 ```{r PCA plots: genotype effect}
 palette(cols_genotype_report)
 
-pdf("figures/merge_valdis_2015/PCA_scoresplots_genotype_effect.pdf",6, 6)
+pdf("figures/merge_valdis_2015_A/PCA_scoresplots_genotype_effect.pdf",6, 6)
 par(mar=c(4.5, 4.5, 2, 0.5))
 
 func_5pairs_plot(pca_norm_pareto_rnipals, factors, "genotype_class", 19, "genotype effect")
@@ -298,7 +306,14 @@ func_pca_plot_sym(pca_norm_pareto_rnipals, 2, 3, factors, "genotype_class", c(19
 func_pca_plot(pca_norm_pareto_rnipals, 2, 3, factors, "genotype_class", 19, 1.5, "bottomleft", 1)
 func_pca_plot(pca_norm_pareto_rnipals, 2, 4, factors, "genotype_class", 19, 1.5, "topleft", 1, ymax = 3)
 func_pca_plot(pca_norm_pareto_rnipals, 3, 4, factors, "genotype_class", 19, 1.5, "topleft", 1, ymax = 3)
+func_pca_plot(pca_norm_pareto_rnipals, 3, 5, factors, "genotype_class", 19, 1.5, "topleft", 1)
 
+# NO SCALING --> shows separation of lines by PC2 (e.g. A179012)
+func_pca_plot(pca_norm_none_rnipals, 1, 2, factors, "genotype_class", 19, 1.5, "bottomleft", 1,
+              maintext = "genotype effect (no scaling)")
+func_pca_plot_sym(pca_norm_none_rnipals, 1, 2, factors, "genotype_class", c(19,17), 
+              "treatment", 1.5, "bottomright", 0.8, "topright", 0.8, 
+              maintext = "genotype / treatment effect (no scaling)", xmax = 4.5)
 dev.off()
 ```
 
@@ -307,7 +322,7 @@ dev.off()
 ```{r PCA plots: treatment effect}
 palette(cols_treatment_report)
 
-pdf("figures/merge_valdis_2015/PCA_scoresplots_treatment_effect.pdf",6, 6)
+pdf("figures/merge_valdis_2015_A/PCA_scoresplots_treatment_effect.pdf",6, 6)
 par(mar=c(4.5, 4.5, 2, 0.5))
 
 func_5pairs_plot(pca_norm_pareto_rnipals, factors, "treatment", 19, "cultivar effect")
@@ -330,8 +345,8 @@ dev.off()
 
 ## PCA plots: report
 ```{r PCA plots: report}
-#pdf("figures/merge_valdis_2015/PCA_scoresplots_report.pdf", 12, 6)
-png("figures/merge_valdis_2015/PCA_scoresplots_report.png", 4000, 2000, res = 300)
+#pdf("figures/merge_valdis_2015_A/PCA_scoresplots_report.pdf", 12, 6)
+png("figures/merge_valdis_2015_A/PCA_scoresplots_report.png", 4000, 2000, res = 300)
 
 par(mar=c(4.5, 4.5, 0.5, 0.5))
 par(mfrow=c(1,2))
@@ -351,16 +366,16 @@ dev.off()
 
 which(analytes_sel_exp_sort$analyteID == "A179012-101")
 
-pdf("figures/merge_valdis_2015/boxplot_A179012-101.pdf", 9, 6)
+pdf("figures/merge_valdis_2015_A/boxplot_A179012-101.pdf", 9, 6)
 
-boxplot(values_norm[,35] ~ factors$genotype_class, 
+boxplot(values_norm[,33] ~ factors$genotype_class, 
         las = 2, col = cols_genotype_report, 
         ylab = "log10-normalisierter Metabolit-Gehalt")
 
-boxplot(values_norm[,35] ~ factors$genotype_name, las = 2)
+boxplot(values_norm[,33] ~ factors$genotype_name, las = 2)
 
 # sorted boxplot
-matrix_df <- data.frame(value = values_norm[, 35], 
+matrix_df <- data.frame(value = values_norm[, 33], 
                         genotype = factors$genotype_name)
     
 # sort genotypes according to median for boxplot
@@ -370,7 +385,7 @@ matrix_df_sorted <- with(matrix_df, reorder(genotype, value, median, na.rm = T))
 boxplot(value ~ matrix_df_sorted, data = matrix_df, 
         ylab = "log10−normalisierter Metabolit−Gehalt", 
         las = 2, cex.lab = 1, cex.axis = 0.7, 
-        main = analytes_sel_exp_sort$Name[35],
+        main = analytes_sel_exp_sort$Name[33],
         col = c(rep(cols_treatment[1], 32), 
                 rep(cols_treatment[2],28)) )
 
@@ -378,15 +393,15 @@ dev.off()
 
 #############
 
-#pdf("figures/merge_valdis_2015/boxplot_A179012-101_report.pdf", 12, 4)
-png("figures/merge_valdis_2015/boxplot_A179012-101_report.png", 5000, 1200, res=300)
+#pdf("figures/merge_valdis_2015_A/boxplot_A179012-101_report.pdf", 12, 4)
+png("figures/merge_valdis_2015_A/boxplot_A179012-101_report.png", 5000, 1200, res=300)
 
 par(mar=c(4.5, 4.5, 0.5, 0.5))
 
 layout(matrix(c(1,2), 1, 2, byrow = TRUE),   
        widths = c(1,2), heights = 1)
 
-boxplot(values_norm[,35] ~ factors$genotype_class, 
+boxplot(values_norm[,33] ~ factors$genotype_class, 
         las = 2, col = cols_genotype_report, 
         ylab = "log10-normalisierter Metabolit-Gehalt")
 
@@ -411,13 +426,13 @@ res_anova_treatment_cultivar_sig_genotype <- which(res_anova_treatment_genotype[
 res_anova_treatment_cultivar_sig_both <- intersect (which(res_anova_treatment_genotype[,1] < 0.01), 
                                                     which(res_anova_treatment_genotype[,2] < 0.01))
 
-write.table(res_anova_treatment_genotype, "output/merge_valdis_2015/res_anova_treatment_genotype.txt", sep="\t")
+write.table(res_anova_treatment_genotype, "output/merge_valdis_2015_A/res_anova_treatment_genotype.txt", sep="\t")
 ```
 
 
 ## Boxplots of normalized values per analyte using 2 factors
 ```{r boxplots of normalized values per analyte using 2 factors}
-pdf("figures/merge_valdis_2015/boxplot_treatment_genotype.pdf", width=7, height=8)
+pdf("figures/merge_valdis_2015_A/boxplot_treatment_genotype.pdf", width=7, height=8)
 par(mar=c(7, 4.1, 7, 2.1))
 func_boxplot_2fac(normalized_values = values_norm, 
                   trial_factors = factors, 
@@ -432,7 +447,7 @@ dev.off()
 
 ################################
 
-pdf("figures/merge_valdis_2015/boxplot_treatment.pdf")
+pdf("figures/merge_valdis_2015_A/boxplot_treatment.pdf")
 func_boxplot_1fac(values_norm, 
                   factors, 
                   "treatment", 
@@ -446,12 +461,12 @@ dev.off()
 
 ## Sorted boxplots per genotype
 ```{r sorted boxplots per genotype}
-pdf("figures/merge_valdis_2015/boxplot_sorted_per_genotype.pdf", 10, 6)
+pdf("figures/merge_valdis_2015_A/boxplot_sorted_per_genotype.pdf", 10, 6)
 func_boxplot_sorted2(values_norm, factors$genotype_name, analytes_sel_exp_sort)
 dev.off()
 
 
-pdf("figures/merge_valdis_2015/boxplot_genotype_class.pdf")
+pdf("figures/merge_valdis_2015_A/boxplot_genotype_class.pdf", 5, 5)
 func_boxplot_1fac(values_norm, 
                   factors, 
                   "genotype_class", 
@@ -461,7 +476,7 @@ func_boxplot_1fac(values_norm,
 dev.off()
 
 
-pdf("figures/merge_valdis_2015/boxplot_sorted_per_genotype_class.pdf", 10, 6)
+pdf("figures/merge_valdis_2015_A/boxplot_sorted_per_genotype_class.pdf", 10, 6)
 func_boxplot_sorted2(values_norm, factors$genotype_class, analytes_sel_exp_sort)
 dev.off()
 ```
@@ -470,7 +485,7 @@ dev.off()
 
 ### Save workspace and sessionInfo
 ```{r save workspace}
-save.image("merge_valdis_2015.RData")
+save.image("merge_valdis_2015_A.RData")
 sessionInfo()
 ```
 

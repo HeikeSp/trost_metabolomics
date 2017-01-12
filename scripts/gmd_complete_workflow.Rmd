@@ -2,12 +2,14 @@
 title: "Get GMD data - complete workflow"
 author: "Heike Sprenger"
 date: "November 9, 2015"
-output: 
+output:
   html_document:
-    toc: true
-    theme: cerulean
-    number_section: true
     highlight: tango
+    number_section: yes
+    theme: cerulean
+    toc: yes
+    toc_float: true
+    toc_depth: 4
 ---
 
 # Load packages and scripts
@@ -28,27 +30,27 @@ opts_chunk$set(fig.width=5, fig.height=5, cache=FALSE, highlight = TRUE, fig.sho
 ```
 
 
-# Get Phenotyper metadata
+# Get Phenotyper metadata ``phenotyper_metadata.Rmd``
 ```{r child='phenotyper_metadata.Rmd'}
 ```
 
 
-# Get crucial GMD data - first steps
+# Get crucial GMD data - first steps ``gmd_first_steps.Rmd``
 ```{r child='gmd_first_steps.Rmd'}
 ```
 
 
-# Get GMD raw values
+# Get GMD raw values ``gmd_raw_values.Rmd``
 ```{r child='gmd_raw_values.Rmd'}
 ```
 
 
-# Get GMD metadata
+# Get GMD metadata ``gmd_metadata.Rmd``
 ```{r child='gmd_metadata.Rmd'}
 ```
 
 
-# Get GMD analytes information
+# Get GMD analytes information ``gmd_analytes.Rmd``
 ```{r child='gmd_analytes.Rmd'}
 ```
 

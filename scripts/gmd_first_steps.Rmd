@@ -82,7 +82,7 @@ gmd_trost_experiments <- read.table("data/gmd_trost_experiments.txt", sep="\t", 
 # order table by ID
 gmd_trost_experiments <- gmd_trost_experiments[order(gmd_trost_experiments$id),]
 
-dim(gmd_trost_experiments)
+dim(gmd_trost_experiments) # 26 3
 pander(head(gmd_trost_experiments))
 ```
 
@@ -95,7 +95,7 @@ head(trost_TagList)
 # order table
 trost_TagList <- trost_TagList[order(trost_TagList$id),]
 
-dim(trost_TagList)
+dim(trost_TagList) # 26 5
 ```
 
 
@@ -129,7 +129,7 @@ trost_gmd_ids <- sqlQuery(dbhandle, 'SELECT GC_Chromatogram.name,
 
 colnames(trost_gmd_ids) <- c("GMD_id", "chromatogram")
 dim(trost_gmd_ids)
-# 6806 2
+# 7100 2
 
 pander(head(trost_gmd_ids))
 
@@ -148,12 +148,12 @@ write.table(trost_gmd_ids, "data/trost_gmd_ids.txt", sep="\t")
 ```{r import TROST phenotyper query results}
 phenotyper_result_joined <- read.table("data/phenotyper_result_joined.txt", sep="\t", header=TRUE)
 dim(phenotyper_result_joined)
-# 4790 24
+# 5674 24
 
 # phenotyper_result_joined_with_gmd_ids <- join(phenotyper_result_joined_valdis, trost_gmd_ids, by="GMD_id")
 phenotyper_result_joined_with_gmd_ids <- join(phenotyper_result_joined, trost_gmd_ids, by="GMD_id")
 dim(phenotyper_result_joined_with_gmd_ids)
-# 4790 25
+# 5674 25
 
 # order table by chromatogram id
 phenotyper_result_joined_with_gmd_ids <- phenotyper_result_joined_with_gmd_ids[order(phenotyper_result_joined_with_gmd_ids$chromatogram),]

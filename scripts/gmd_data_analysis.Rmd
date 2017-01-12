@@ -322,14 +322,13 @@ pca_norm_log10_vector_rnipals <- func_prep_pca(values_norm_log10_woNA_woOutlier,
 pca_norm_log10_none_rnipals <- func_prep_pca(values_norm_log10_woNA_woOutlier, scale_method = "none", center_option = FALSE, 
                                              pc_number = 5, pca_method = "rnipals")
 
-
-
-
 # matrix without NAs
 pca_norm_log10_woNA_pareto_rnipals <- func_prep_pca(values_norm_log10_woNA, scale_method = "pareto", center_option = FALSE, 
                                              pc_number = 5, pca_method = "rnipals")
+```
 
-# compare PCA of matrix with/without NAs
+## Pairs plot to compare PCA of matrix with/without NAs
+```{r pairs plot to compare PCA of matrix with/without NAs}
 palette(cols_genotype_factor)
 pairs(pca_norm_log10_pareto_rnipals@scores[,1:5], 
       col=factors$genotype_class, pch=19, main="pareto scaling")
