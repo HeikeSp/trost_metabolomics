@@ -1,0 +1,208 @@
+---
+title: "merge_valdis_2015_A_subset"
+author: "hespr"
+date: "18 April 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#setwd("X:/mpimp/repos/trost_metabolomics")
+```
+
+
+# Load packages and functions for metabolite data analysis
+```{r load packages and functions for metabolite data analysis, message=FALSE, fig.show='hide'}
+# load packages
+source("../functions/func_load_packages_metabolite_data_analysis.R")
+library(MASS)
+
+# load functions
+source("../functions/func_load_functions_metabolite_data_analysis.R")
+```
+
+
+# Load data
+## Load analytes table
+this table comes from ``gmd_analytes.Rmd``
+```{r load analytes table}
+analytes_sel_exp_sort <- read.table("data/analytes_table_21exp_overlap_select_ordered.txt", 
+                                    sep = "\t", header = T, allowEscapes = T)
+```
+
+## Load sample information
+```{r}
+factors <- read.table("output/merge_valdis_2015_A/factors.txt", sep = "\t", header = T)
+
+# for selected RNA-Seq samples
+factors_rnaseq <- read.table("../trost_transcriptomics/output/valdis/samplelist_modified.txt", sep="\t")
+# extract information about yield potential per line_alias
+grouping <- unique(factors_rnaseq[, c("lines_alias","yield_potential")])
+# merge grouping with factors table for metabolomics
+factors_subset <- droplevels(merge(factors, grouping, by.x = "genotype_name", by.y = "lines_alias"))
+
+# subset of samples from RNA-Seq
+factors_subset <- droplevels(subset(factors, factors$genotype_name %in% factors_rnaseq$lines_alias))
+dim(factors_subset)
+table(factors_subset$genotype_name)
+table(factors_subset$yield_potential)
+```
+
+## Load data: selected overlapping analytes (71) already ANOVA-normalized
+* from: ``merge_valdis_2015_A.Rmd``
+```{r load data}
+values_norm <- read.table("output/merge_valdis_2015_A/values_norm.txt", sep="\t", header = T)
+
+# get subset of values that were also measured by RNA-Seq
+values_subset <- values_norm[which(rownames(values_norm) %in% factors_subset$chromatogram), ]
+
+# order by chromatogram order in factors table
+values_subset <- values_subset[as.character(factors_subset$chromatogram),]
+```
+
+
+# Perform PCA
+## Prep for PCA
+```{r prep for PCA}
+pca_subset_pareto_rnipals <- func_prep_pca(values_subset, scale_method = "pareto", center_option = FALSE, 
+                                             pc_number = 5, pca_method = "rnipals")
+
+pca_subset_none_rnipals <- func_prep_pca(values_subset, scale_method = "none", center_option = FALSE, 
+                                             pc_number = 5, pca_method = "rnipals")
+```
+
+## PCA plots all trials
+```{r PCA plots all trials}
+# pdf("figures/merge_valdis_2015_A/PCA_scoresplots_normalization_effect.pdf")
+# par(mar=c(4.5, 4.5, 2, 0.5))
+
+# trial
+palette( brewer.pal(4, "Dark2"))
+func_5pairs_plot(pca_subset_none_rnipals, factors_subset, "trial", 19, "trial effect, after normalization")
+
+# genotype
+palette(cols_genotype_report)
+func_5pairs_plot(pca_subset_none_rnipals, factors_subset, "genotype_class", 19, "genotype effect, after normalization")
+func_pca_plot(pca_subset_none_rnipals, 1, 2, factors_subset, "genotype_class", 
+              19, 1.5, "bottomleft", 1, maintext = "after normalization (no scaling)")
+# text(pca_subset_none_rnipals@scores[,1], pca_subset_none_rnipals@scores[,2], factors_subset$genotype_name)
+func_5pairs_plot(pca_subset_pareto_rnipals, factors_subset, "genotype_class", 19, "genotype effect, after normalization (pareto scaling)")
+
+# treatment
+palette(cols_treatment_report)
+func_5pairs_plot(pca_subset_none_rnipals, factors_subset, "treatment", 19, "treatment effect, before normalization")
+func_5pairs_plot(pca_subset_pareto_rnipals, factors_subset, "treatment", 19, "treatment effect, after normalization")
+
+# yield potential
+palette( brewer.pal(3, "Dark2"))
+func_5pairs_plot(pca_subset_none_rnipals, factors_subset, "yield_potential", 19, "genotype effect, after normalization")
+func_pca_plot(pca_subset_none_rnipals, 1, 2, factors_subset, "yield_potential", 
+              19, 1.5, "bottomleft", 1, maintext = "after normalization (no scaling)")
+text(pca_subset_none_rnipals@scores[,1], pca_subset_none_rnipals@scores[,2], factors_subset$genotype_name)
+```
+
+
+# LDA
+```{r LDA}
+colnames(values_subset) <- analytes_sel_exp_sort$Name
+
+data_for_lda <- data.frame("yield_potential" = factors_subset$yield_potential,
+                           values_subset[,20:40])
+
+yld_lda <- lda(yield_potential ~ ., data = data_for_lda)
+yld_lda
+
+yld_lda_values <- predict(yld_lda)
+plot(yld_lda_values$x[,1], yld_lda_values$x[,2], col=data_for_lda$yield_potential, pch=19)
+
+class(data_for_lda$yield_potential)
+levels(data_for_lda$yield_potential)
+```
+
+
+# ANOVA, boxplots & t-test
+## ANOVA for 2 factors: treatment * cultivar (with interaction)
+```{r ANOVA with 2 factors (with interaction)}
+res_anova_treatment_yld <- func_anova_2fac_ia(values_subset, factors_subset, 
+                                              "treatment", "yield_potential", 0.01, 
+                                              analytes_sel_exp_sort$Name)
+
+res_anova_treatment_yld_sig_treatment <- which(res_anova_treatment_yld[,1] < 0.01)
+res_anova_treatment_yld_sig_genotype <- which(res_anova_treatment_yld[,2] < 0.01)
+res_anova_treatment_yld_sig_both <- intersect (which(res_anova_treatment_yld[,1] < 0.01), 
+                                                    which(res_anova_treatment_yld[,2] < 0.01))
+
+write.table(res_anova_treatment_yld, 
+            "output/merge_valdis_2015_A/res_anova_treatment_yield_potential.txt", sep="\t")
+```
+
+
+## Boxplots of normalized values per analyte using 2 factors
+```{r boxplots of normalized values per analyte using 2 factors}
+pdf("figures/merge_valdis_2015_A/boxplot_treatment_yield_potential.pdf", width=7, height=8)
+par(mar=c(7, 4.1, 7, 2.1))
+func_boxplot_2fac(normalized_values = values_subset, 
+                  trial_factors = factors_subset, 
+                  factor1 = "treatment", 
+                  factor2 = "yield_potential", 
+                  res_anova_adj = res_anova_treatment_yld, 
+                  cols = cols_treatment_report,
+                  names_factors = levels(interaction(factors_subset$treatment,
+                                                     factors_subset$yield_potential)),
+                  analytes_sel_exp_sort$Name)
+
+dev.off()
+
+################################
+
+# pdf("figures/merge_valdis_2015_A/boxplot_treatment.pdf")
+# func_boxplot_1fac(values_norm, 
+#                   factors, 
+#                   "treatment", 
+#                   res_anova_treatment_genotype, 
+#                   cols_treatment, 
+#                   analytes_sel_exp_sort$Name)
+# dev.off()
+```
+
+
+
+## Sorted boxplots per genotype
+```{r sorted boxplots per genotype}
+pdf("figures/merge_valdis_2015_A/boxplot_sorted_per_genotype_subset.pdf", 10, 6)
+func_boxplot_sorted2(values_norm, factors$genotype_name, analytes_sel_exp_sort)
+dev.off()
+
+
+pdf("figures/merge_valdis_2015_A/boxplot_yield_potential.pdf", 5, 5)
+func_boxplot_1fac(values_subset, 
+                  factors_subset, 
+                  "yield_potential", 
+                  res_anova_treatment_yld, 
+                  brewer.pal(3, "Dark2"), 
+                  analytes_sel_exp_sort$Name)
+dev.off()
+
+
+pdf("figures/merge_valdis_2015_A/boxplot_sorted_per_genotype_class.pdf", 10, 6)
+func_boxplot_sorted2(values_norm, factors$genotype_class, analytes_sel_exp_sort)
+dev.off()
+```
+
+```{r salicylic acid}
+pdf("figures/merge_valdis_2015_A/boxplot_salicylic_acid.pdf", 8, 6)
+boxplot(values_subset[,9] ~ factors_subset$yield_potential * factors_subset$treatment,
+        col = brewer.pal(3, "Dark2"))
+        #col = brewer.pal(6, "Paired")[c(1,3,5,2,4,6)])
+dev.off()
+```
+
+
+# Save workspace and sessionInfo
+```{r save workspace}
+save.image("merge_valdis_2015_A_subset.RData")
+sessionInfo()
+```
+
+
