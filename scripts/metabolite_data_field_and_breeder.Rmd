@@ -15,7 +15,7 @@ output:
 # Set working directory  
 ```{r set working directory}
 getwd()
-#setwd("D:/work/repos/trost_metabolomics/")
+#setwd("X:/mpimp/repos/trost_metabolomics/")
 ```
 
 
@@ -336,9 +336,19 @@ write.table(norm_values_log10, "output/field_breeder/metabolite_data_log10_norm.
 
 gmd_values_log10_prep <- prep(gmd_values_select_log10, scale = "none", center = F) # before normalization
 norm_values_log10_prep <- prep(norm_values_log10, scale = "none", center = FALSE) # after normalization (with NA)
+# with scaling
+norm_values_log10_prep_pareto <- prep(norm_values_log10, scale = "pareto", center = FALSE) 
+norm_values_log10_prep_vector <- prep(norm_values_log10, scale = "vector", center = FALSE) 
 
 gmd_values_log10_prep_rnipals <- pca(gmd_values_log10_prep, nPcs = 5, method="rnipals")
 norm_values_log10_prep_rnipals <- pca(norm_values_log10_prep, nPcs = 5, method="rnipals")
+# with scaling
+norm_values_log10_prep_pareto_rnipals <- pcaMethods::pca(norm_values_log10_prep_pareto, nPcs = 5, method="rnipals")
+norm_values_log10_prep_vector_rnipals <- pcaMethods::pca(norm_values_log10_prep_vector, nPcs = 5, method="rnipals")
+
+norm_values_log10_prep_rnipals@R2
+norm_values_log10_prep_pareto_rnipals@R2
+norm_values_log10_prep_vector_rnipals@R2
 
 # complete observations of TROST data
 compObs <- norm_values_log10_prep_rnipals@completeObs
@@ -458,10 +468,11 @@ par(mar=c(4.3, 4.5, 2, 1))
 palette(c("#023fa5", "#8e063b", "#11c638", "#ef9708")) # darkblue red green orange
 
 func_pca_plot(norm_values_log10_prep_rnipals, 1, 2, gmd_meta_model_sort, "treatment2", 19, 1, 
-              "topleft", 1, xmin = -3, xmax = 3, ymax = 3.5,
+              "topleft", 1.4, xmin = -3, xmax = 3, ymax = 4,
               legend.text = c("experimental field trials: control", "experimental field trials: drought stress", 
                               "agronomic field trials 2011", "agronomic field trials 2012"))
 dev.off()
+
 
 pdf("figures/field_breeder/metabolites_PCA_plot_for_publication_treatment_PC2-4.pdf", width = 7, height = 7)
 par(mar=c(4.3, 4.5, 2, 1))
@@ -491,6 +502,42 @@ func_pca_plot(norm_values_log10_prep_rnipals, 1, 2, gmd_meta_model_sort, "genoty
 # PC2 vs PC3
 func_pca_plot(norm_values_log10_prep_rnipals, 2, 3, gmd_meta_model_sort, "genotype_name", 19, 1, 
               "topleft", 0.8, xmin = -3.5, xmax = 3,
+              legend.text = levels(gmd_meta_model_sort$genotype_name))
+dev.off()
+```
+
+
+### Plots for scaled PCA
+```{r Plots for scaled PCA}
+################## SCALED
+pdf("figures/field_breeder/metabolites_PCA_plot_for_publication_treatment_scaled.pdf", width = 7, height = 7)
+par(mar=c(4.3, 4.5, 2, 1))
+palette(c("#023fa5", "#8e063b", "#11c638", "#ef9708")) # darkblue red green orange
+
+func_pca_plot(norm_values_log10_prep_pareto_rnipals, 1, 2, gmd_meta_model_sort, "treatment2", 19, 1, 
+              "topleft", 1, xmin = -6.6, xmax = 5.5, ymax = 3.8, ymin = -5, maintext = "pareto scaling",
+              legend.text = c("experimental field trials: control", "experimental field trials: drought stress", 
+                              "agronomic field trials 2011", "agronomic field trials 2012"))
+
+func_pca_plot(norm_values_log10_prep_vector_rnipals, 1, 2, gmd_meta_model_sort, "treatment2", 19, 1, 
+              "topleft", 1, xmin = -0.03, xmax = 0.03, ymax = 0.03, ymin = -0.03, maintext = "vector scaling",
+              legend.text = c("experimental field trials: control", "experimental field trials: drought stress", 
+                              "agronomic field trials 2011", "agronomic field trials 2012"))
+dev.off()
+############################
+
+pdf("figures/field_breeder/metabolites_PCA_plot_for_publication_genotype_scaled.pdf", width = 7, height = 7)
+par(mar=c(4.3, 4.5, 2, 1))
+palette(cols_distinct_31)
+
+# PC1 vs PC3
+func_pca_plot(norm_values_log10_prep_pareto_rnipals, 1, 3, gmd_meta_model_sort, "genotype_name", 19, 1, 
+              "topleft", 0.8, xmin = -6.6, xmax = 5.5, ymax = 5.2, ymin = -4,
+              legend.text = levels(gmd_meta_model_sort$genotype_name))
+
+# PC1 vs PC2
+func_pca_plot(norm_values_log10_prep_pareto_rnipals, 1, 2, gmd_meta_model_sort, "genotype_name", 19, 1, 
+              "topleft", 0.8, xmin = -6.6, xmax = 5.5, ymax = 3.8, ymin = -5,
               legend.text = levels(gmd_meta_model_sort$genotype_name))
 dev.off()
 ```
