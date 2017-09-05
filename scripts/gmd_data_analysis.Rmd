@@ -196,10 +196,10 @@ write.table(factors,
 
 ```{r normalize values IIIc, warning=FALSE}
 # matrix WITH NAs, after log10
-# values_norm_log10 <- func_normalize(gmd_values_select_log10, 
-#                                     trial_factors = factors,
-#                                     facs = all_factors_variable,
-#                                     keep = keep_factors_variable)
+values_norm_log10 <- func_normalize(gmd_values_select_log10,
+                                    trial_factors = factors,
+                                    facs = all_factors_variable,
+                                    keep = keep_factors_variable)
 # write.table(values_norm_log10, 
 #             paste("output/", experiment_string_out, "/values_norm_log10.txt", sep=""), 
 #             sep="\t")
@@ -243,6 +243,7 @@ gmd_values_select_log10_woOutlier <- func_replace_outlier(values_norm_log10_woNA
 sum(is.na(values_norm_log10_woNA))
 # after
 sum(is.na(values_norm_log10_woNA_woOutlier)) 
+sum(is.na(gmd_values_select_log10))
 sum(is.na(gmd_values_select_log10_woOutlier)) 
 
 write.table(values_norm_log10_woNA_woOutlier, file_values_norm_log10_woOutlier, sep = "\t")

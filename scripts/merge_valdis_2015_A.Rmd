@@ -1,5 +1,5 @@
 ---
-title: "Merge GC-MS data from three VALDIS experiments from 2015"
+title: "Merge GC-MS data from four VALDIS experiments from 2015"
 author: "Heike Sprenger"
 date: "November 21, 2015"
 output:
@@ -73,7 +73,7 @@ jki_field_2015_factors <- read.table("output/jki_field_2015_A/factors.txt",
 ```
 
 
-## Load data: log-transformed, with NAs, selected samples and selected overlapping analytes (107)
+## Load data: log-transformed, with NAs, selected samples and selected overlapping analytes (71)
 ```{r load data}
 mpi_fgh_2015_values <- read.table("output/mpi_fgh_2015_A/gmd_values_select_log10.txt", 
                                     sep = "\t", header = T, row.names = 1, check.names = F)
