@@ -17,6 +17,7 @@ output:
 library(knitr)
 library(pander)
 library(colorRamps)
+library(reshape)
 
 # set options for pander
 panderOptions('table.split.table', 200)
@@ -27,7 +28,7 @@ opts_chunk$set(fig.width = 5, fig.height = 5, cache = F,
 opts_knit$set(root.dir = '../')
 
 #setwd("~/work/repos/trost_metabolomics")
-#setwd("D:/work/repos/trost_metabolomics")
+#setwd("X:/mpimp/repos/trost_metabolomics")
 
 #load("merge_mpi_test_rewatering.RData")
 ```
@@ -187,6 +188,10 @@ factors$trial <- as.factor(c(rep("mpi_test_1_2", 96),
 factors$tolerance <- func_create_tolerance_factor(factors)
 table(factors$tolerance, factors$genotype_name)
 
+# interaction of sample_time and cultivar
+factors$sample_time_cultivar <- interaction(factors$sample_time, factors$genotype_name, sep = "-")
+levels(factors$sample_time_cultivar)
+
 write.table(factors, "output/merge_mpi_test_rewatering/factors.txt", sep = "\t")
 ```
 
@@ -324,24 +329,26 @@ func_5pairs_plot(pca_norm_pareto_rnipals, factors, "treatment", 19, "treatment e
 
 # trial
 palette( brewer.pal(3, "Dark2"))
-func_pca_plot_sym(pca_none_rnipals, 1, 2, factors, "trial", c(19,17), 
-              "treatment", 1.5, "topleft", 0.8, "topright", 0.8, "before normalization", 
-              legend.text = c("MPI test 1.2", "MPI test 2"))
+func_pca_plot_sym(pca_res = pca_none_rnipals, dim1 = 1, dim2 = 2, factors = factors, 
+                  color_factor = "trial", symbols = c(19,17), symbol_factor = "treatment", 
+                  symbol_size = 1.5, pos1 = "topleft", leg1 = 0.8, pos2 = "topright", leg2 = 0.8, 
+                  maintext = "before normalization", legend.text1 = c("MPI test 1.2", "MPI test 2"))
 
 func_pca_plot_sym(pca_norm_none_rnipals, 1, 2, factors, "trial", c(19,17), 
               "treatment", 1.5, "bottomleft", 0.8, "topright", 0.8, "after normalization",
-              legend.text = c("MPI test 1.2", "MPI test 2"))
+              legend.text1 = c("MPI test 1.2", "MPI test 2"))
 
 # cultivar
 palette(cols_cultivar_check)
 func_pca_plot(pca_norm_none_rnipals, 1, 2, factors, "genotype_name", 19, 1.5, "bottomleft", 1)
 func_pca_plot(pca_norm_none_rnipals, 2, 3, factors, "genotype_name", 19, 1.5, "bottomright", 1)
-func_pca_plot(pca_norm_pareto_rnipals, 1, 2, factors, "genotype_name", 19, 1.5, "bottomleft", 1)
+func_pca_plot(pca_norm_pareto_rnipals, 2, 3, factors, "genotype_name", 19, 1.5, "bottomleft", 1)
 
 # treatment
 palette(cols_treatment)
 func_pca_plot(pca_norm_none_rnipals, 1, 2, factors, "treatment", 19, 1.5, "bottomleft", 1)
-func_pca_plot(pca_norm_pareto_rnipals, 1, 2, factors, "treatment", 19, 1.5, "bottomleft", 1)
+func_pca_plot(pca_norm_pareto_rnipals, 1, 2, factors, "treatment", 19, 1.5, "bottomleft", 1,
+              maintext = "treatment effect")
 
 dev.off()
 ```
@@ -353,18 +360,21 @@ palette(cols_cultivar_check)
 
 pdf("figures/merge_mpi_test_rewatering/PCA_scoresplots_cultivar_effect.pdf",6,6)
 
-func_5pairs_plot(pca_norm_none_rnipals, factors, "genotype_name", 19, "cultivar effect")
-func_5pairs_plot_sym(pca_norm_none_rnipals, factors, "genotype_name", c(19,17), "treatment", "cultivar / treatment effect")
+func_5pairs_plot(pca_norm_pareto_rnipals, factors, "genotype_name", 19, "cultivar effect")
+func_5pairs_plot_sym(pca_norm_pareto_rnipals, factors, "genotype_name", c(19,17), "treatment", "cultivar / treatment effect")
 
 # PC1 vs PC2
-func_pca_plot_sym(pca_norm_none_rnipals, 1, 2, factors, "genotype_name", c(19,17), 
-              "treatment", 1.5, "bottomright", 0.8, "topright", 0.8, "cultivar / treatment effect")
+func_pca_plot_sym(pca_norm_pareto_rnipals, 1, 2, factors, "genotype_name", c(19,17), 
+              "treatment", 1.5, "bottomright", 0.8, "bottomleft", 0.8, "cultivar / treatment effect")
 # PC1 vs PC3
-func_pca_plot_sym(pca_norm_none_rnipals, 1, 3, factors, "genotype_name", c(19,17), 
+func_pca_plot_sym(pca_norm_pareto_rnipals, 1, 3, factors, "genotype_name", c(19,17), 
               "treatment", 1.5, "bottomright", 0.8, "topright", 0.8, "cultivar / treatment effect")
 # PC2 vs PC3
-func_pca_plot_sym(pca_norm_none_rnipals, 2, 3, factors, "genotype_name", c(19,17), 
+func_pca_plot_sym(pca_norm_pareto_rnipals, 2, 3, factors, "genotype_name", c(19,17), 
               "treatment", 1.5, "bottomleft", 0.8, "topleft", 0.8, "cultivar / treatment effect")
+
+func_pca_plot(pca_norm_pareto_rnipals, 2, 3, factors, "genotype_name", 19, 1.5, "bottomleft", 1, 
+              maintext = "cultivar effect")
 
 dev.off()
 
@@ -401,6 +411,33 @@ func_pca_plot_sym(pca_norm_none_rnipals, 1, 2, factors, "treatment",
 ```
 
 
+## PCA plots: treatment and sample time effect
+```{r PCA plots: treatment and sample time effect}
+# sample time
+pdf("figures/merge_mpi_test_rewatering/PCA_scoresplots_sample_time_effect.pdf")
+palette(cols_sample_time)
+func_5pairs_plot(pca_norm_pareto_rnipals, factors, 
+                 "sample_time", 19, "sampling time effect (no scaling, rnipals)")
+
+func_pca_plot(pca_norm_pareto_rnipals, 1, 2, factors, "sample_time", 19, 1.5, 
+              "bottomleft", 0.8, maintext = "sampling time effect (pareto scaling, rnipals)")
+
+func_pca_plot_sym(pca_res = pca_norm_pareto_rnipals, dim1 = 1, dim2 = 2, 
+                  factors = factors, color_factor = "sample_time", 
+                  symbol_size = 1.5, symbols = c(19,17), symbol_factor = "treatment", 
+                  pos1 = "bottomleft", leg1 = 0.8, pos2 = "bottomright", leg2 = 0.8,
+                  maintext = "sampling time x treatment effect (pareto scaling, rnipals)")
+
+func_pca_plot_sym(pca_res = pca_norm_pareto_rnipals, dim1 = 1, dim2 = 3, 
+                  factors = factors, color_factor = "sample_time", 
+                  symbol_size = 1.5, symbols = c(19,17), symbol_factor = "treatment", 
+                  pos1 = "bottomleft", leg1 = 0.8, pos2 = "topleft", leg2 = 0.8,
+                  maintext = "sampling time x treatment effect (pareto scaling, rnipals)")
+dev.off()
+```
+
+
+
 # Aggregate normalized values for heatmap
 ```{r aggregate normalized values}
 # # for matrix with NAs using 4 factors
@@ -428,7 +465,9 @@ func_pca_plot_sym(pca_norm_none_rnipals, 1, 2, factors, "treatment",
 ## ANOVA for 2 factors: treatment * cultivar (with interaction)
 ```{r ANOVA with 2 factors (with interaction)}
 res_anova_treatment_cultivar <- func_anova_2fac_ia(values_norm_woNA_woOutlier, factors, "treatment", "genotype_name", 0.01, analytes_sel_exp_sort$Name)
-res_anova_treatment_sample_time <- func_anova_2fac_ia(values_norm_woNA_woOutlier, factors, "treatment", "sample_time", 0.01, analytes_sel_exp_sort$Name)
+res_anova_treatment_sample_time <- func_anova_2fac_ia(values_norm_woNA_woOutlier, factors, 
+                                                      "treatment", "sample_time", 0.01, 
+                                                      analytes_sel_exp_sort$Name)
 
 res_anova_treatment_cultivar_sig_treat <- which(res_anova_treatment_cultivar[,1] < 0.01)
 res_anova_treatment_cultivar_sig_cul <- which(res_anova_treatment_cultivar[,2] < 0.01)
@@ -437,10 +476,31 @@ res_anova_treatment_cultivar_sig_both <- intersect (which(res_anova_treatment_cu
 
 write.table(res_anova_treatment_cultivar, "output/merge_mpi_test_rewatering/res_anova_treatment_cultivar.txt", sep="\t")
 write.table(res_anova_treatment_sample_time, "output/merge_mpi_test_rewatering/res_anova_treatment_sample_time.txt", sep="\t")
+
+
+res_anova_adj_ia_treat_time_cultivar <- func_anova_2fac_ia(normalized_values = values_norm_woNA_woOutlier, 
+                                 trial_factors = factors, 
+                                 factor1 = "treatment", 
+                                 factor2 = "sample_time_cultivar",
+                                 threshold = 0.01,
+                                 analyte_names = analytes_sel_exp_sort$Name)
 ```
 
 
-## Boxplots of normalized values per analyte using 2 factors
+# Boxplots of normalized values per analyte using 2 factors
+## Boxplots per gene: treatment  effect
+```{r Boxplots per gene: treatment effect}
+pdf("figures/merge_mpi_test_rewatering/boxplot_treatment.pdf")
+func_boxplot_1fac(values_norm_woNA_woOutlier, 
+                  factors, 
+                  "treatment", 
+                  res_anova_treatment_cultivar, 
+                  cols_treatment, 
+                  analytes_sel_exp_sort$Name)
+dev.off()
+```
+
+## Boxplots per gene: treatment x cultivar effect
 ```{r boxplots of normalized values per analyte using 2 factors}
 pdf("figures/merge_mpi_test_rewatering/boxplot_treatment_cultivar.pdf", width=7, height=8)
 par(mar=c(7, 4.1, 7, 2.1))
@@ -454,20 +514,10 @@ func_boxplot_2fac(normalized_values = values_norm_woNA_woOutlier,
                   analytes_sel_exp_sort$Name)
 
 dev.off()
+```
 
-################################
-
-pdf("figures/merge_mpi_test_rewatering/boxplot_treatment.pdf")
-func_boxplot_1fac(values_norm_woNA_woOutlier, 
-                  factors, 
-                  "treatment", 
-                  res_anova_treatment_cultivar, 
-                  cols_treatment, 
-                  analytes_sel_exp_sort$Name)
-dev.off()
-
-###############################
-
+## Boxplots per gene: treatment x sample_time effect
+```{r Boxplots per gene: treatment x sample_time effect}
 pdf("figures/merge_mpi_test_rewatering/boxplot_treatment_sample_time.pdf", width=7, height=8)
 par(mar=c(7, 4.1, 7, 2.1))
 func_boxplot_2fac(normalized_values = values_norm_woNA_woOutlier, 
@@ -483,6 +533,54 @@ dev.off()
 ```
 
 
+## Boxplots per gene: treatment x sample time x cultivar effect
+```{r boxplots per gene: treatment x sample time x cultivar effect}
+pdf("figures/merge_mpi_test_rewatering/boxplot_treatment_sample_time_cultivar.pdf", width=7, height=8)
+par(mar=c(7, 4.1, 7, 2.1))
+func_boxplot_2fac(normalized_values = values_norm_woNA_woOutlier, 
+                  trial_factors = factors, 
+                  factor1 = "treatment",
+                  factor2 = "sample_time_cultivar",
+                  res_anova_adj = res_anova_adj_ia_treat_time_cultivar, 
+                  cols = cols_treatment_sample_time, 
+                  analyte_names = analytes_sel_exp_sort$Name)
+dev.off()
+```
+
+
+## Boxplots per gene: treatment x sample time x cultivar effect 2
+```{r Boxplots per gene: treatment x sample time x cultivar effect 2}
+data_info <- data.frame(factors, values_norm_woNA_woOutlier, check.names = F)
+
+met <- as.character(analytes_sel_exp_sort$analyteID)
+met <- gsub("-101", "", met)
+
+colnames(data_info)[18:181] <- met
+
+met_name <- as.character(analytes_sel_exp_sort$Name)
+names(met_name) <- met
+
+pdf("figures/merge_mpi_test_rewatering/boxplot_treatment_sample_time_cultivar2.pdf", width = 8, height = 6)
+for(i in met){
+  p <- ggplot(data_info, aes_string(x = "sample_time", y = i, fill = "treatment")) + 
+    geom_boxplot() + ggtitle(met_name[i]) +
+    facet_wrap(~ genotype_name, ncol = 2) + 
+    scale_fill_manual(values=cols_treatment)
+  plot(p)}
+dev.off()
+
+pdf("figures/merge_mpi_test_rewatering/boxplot_treatment_sample_time_cultivar3.pdf", width = 8, height = 6)
+for(i in met){
+  p <- ggplot(data_info, aes_string(x = "genotype_name", y = i, fill = "treatment")) + 
+    geom_boxplot() + ggtitle(met_name[i]) +
+    facet_wrap(~ sample_time, ncol = 2) + 
+    scale_fill_manual(values=cols_treatment)
+  plot(p)}
+dev.off()
+```
+
+
+# t-test
 ## t-test: control vs. stress, separately for sample_time
 ```{r t-test control vs. stress}
 res_ttest_treatment <- func_ttest_treatment_all(values_norm_woNA_woOutlier, factors, 0.01)
@@ -516,6 +614,20 @@ length( setdiff(union_sample_time, which(res_ttest_treatment < 0.01))) # 25
 res_ttest_treatment_specific <- setdiff(which(res_ttest_treatment < 0.01), union_sample_time)
 
 length( union(which(res_ttest_treatment < 0.01), union_sample_time)) # 144
+```
+
+
+## t-test: control vs. stress, separately for sample_time and cultivar
+```{r t-test: control vs. stress, separately for sample_time and cultivar}
+res_ttest <- matrix(NA, ncol = 16, nrow = 164)
+colnames(res_ttest) <- levels(factors$sample_time_cultivar)
+rownames(res_ttest) <- analytes_sel_exp_sort$Name
+
+for(i in levels(factors$sample_time_cultivar)){
+  
+  res_ttest[,i] <- func_ttest_treatment(values_norm_woNA_woOutlier, factors, 
+                                        fac1 = "sample_time_cultivar", val1 = i, 0.01)
+}
 ```
 
 
@@ -639,11 +751,14 @@ write.table(not_sig, "output/merge_mpi_test_rewatering/not_sig_regulated_analyte
 ```
 
 
-# Aggregate normalized values for heatmap ONLY late samples
-```{r aggregate normalized values ONLY late/before samples}
+# Aggregate normalized values for heatmap
+## Aggregate normalized values for heatmap: per treatment and sample time
+```{r Aggregate normalized values for heatmap: per treatment and sample time}
 # for matrix with NAs using 2 factors (treatment, cultivar)
 # MEDIAN
-values_norm_median <- func_agg_2fac(values_norm_woNA_woOutlier, factors, "sample_time", "treatment", median, analytes_sel_exp_sort)
+values_norm_median <- func_agg_2fac(values_norm_woNA_woOutlier, factors, 
+                                    "sample_time", "treatment", median, 
+                                    analytes_sel_exp_sort)
 dim(values_norm_median)
 # 8 samples (rows), 165 (1 sampleID, 164 analytes, columns)
 
@@ -660,12 +775,39 @@ write.table(values_norm_median_t,
             sep = "\t", quote = F, col.names = NA, row.names = T)
 ```
 
+## Aggregate normalized values for heatmap: per cultivar, treatment and sample time
+```{r aggregate normalized values: per cultivar, treatment and sample time}
+# for matrix with NAs using 3 factors (treatment, sample time, cultivar)
+# MEDIAN
+values_norm_median_3fac <- func_agg_3fac(values_norm_woNA_woOutlier, factors, 
+                                         "sample_time", "genotype_name","treatment", 
+                                         mean, #median
+                                         analytes_sel_exp_sort)
+dim(values_norm_median_3fac)
+# 32 samples (rows), 165 (1 sample, 164 metabolites, columns)
+
+# export TRANSPOSED matrix for heatmap
+values_norm_median_3fac_t <- t(values_norm_median_3fac[,-1])
+colnames(values_norm_median_3fac_t) <- values_norm_median_3fac$sample
+dim(values_norm_median_3fac_t)
+# 164 metabolites (rows), 32 samples (columns)
+
+values_norm_median_3fac_t[1:5, 1:2]
+
+write.table(values_norm_median_3fac_t, 
+            "output/merge_mpi_test_rewatering/values_norm_log10_median_for_heatmap_3fac.txt", 
+            sep = "\t", quote = F, col.names = NA, row.names = T)
+```
+
 
 # Reverse log-transformation
 ```{r reverse log-transformation}
 values_norm_median_rev <- 10^(values_norm_median[,-1]) # without sample names
 dim(values_norm_median_rev)
 # 8 samples (rows), 164 analytes (columns)
+
+values_norm_median_3fac_rev <- 10^(values_norm_median_3fac[,-1]) # without sample names
+dim(values_norm_median_3fac_rev)
 
 ## samples are in rows, analytes in columns
 ## for transformation: samples should be in columns and analytes in rows --> row-wise median is median over all samples of 1 analyte
@@ -675,6 +817,10 @@ values_norm_median_rev_t <- t(values_norm_median_rev)
 dim(values_norm_median_rev_t)
 # 164 analytes (rows), 8 samples (columns)
 colnames(values_norm_median_rev_t) <- values_norm_median$sample
+
+values_norm_median_3fac_rev_t <- t(values_norm_median_3fac_rev)
+dim(values_norm_median_3fac_rev_t)
+colnames(values_norm_median_3fac_rev_t) <- values_norm_median_3fac$sample
 ```
 
 
@@ -684,15 +830,23 @@ values_norm_median_rev_transformed <- func_log_transform(values_norm_median_rev_
 dim(values_norm_median_rev_transformed)
 # 164 analytes, 8 samples
 
+values_norm_median_3fac_rev_transformed <- func_log_transform(values_norm_median_3fac_rev_t)
+dim(values_norm_median_3fac_rev_transformed)
+
 # export matrix for heatmap
 write.table(values_norm_median_rev_transformed, 
             "output/merge_mpi_test_rewatering/values_norm_log10_median_rev_transformed_for_heatmap.txt", 
+            sep = "\t", quote = F, col.names = NA, row.names = T)
+
+write.table(values_norm_median_3fac_rev_transformed, 
+            "output/merge_mpi_test_rewatering/values_norm_log10_median_3fac_rev_transformed_for_heatmap.txt", 
             sep = "\t", quote = F, col.names = NA, row.names = T)
 ```
 
 
 # Calculation of log2-fold-change
-```{r calculation of log2-fold-change}
+## Calculation of log2-fold-change: per sample time
+```{r calculation of log2-fold-change: per sample time}
 # manual calculation
 colnames(values_norm_median_rev_t)[c(1,5)]
 log2(values_norm_median_rev_t[1,5] / values_norm_median_rev_t[1,1])
@@ -716,6 +870,30 @@ write.table(values_norm_median_rev_t_log2FC,
 
 write.table(values_norm_median_rev_t_log2FC, 
             "output/merge_mpi_test_rewatering/log2FC_treatment_per_sampletime.txt", 
+            sep = "\t", quote = F, row.names = T)
+```
+
+
+## Calculation of log2-fold-change: per sample time and cultivar
+```{r calculation of log2-fold-change: per sample time and cultivar}
+# manual calculation
+colnames(values_norm_median_3fac_rev_t)[c(1,17)]
+log2(values_norm_median_3fac_rev_t[1,17] / values_norm_median_3fac_rev_t[1,1])
+
+colnames(values_norm_median_3fac_rev_t)[c(4,20)]
+log2(values_norm_median_3fac_rev_t[1,20] / values_norm_median_3fac_rev_t[1,4])
+
+values_norm_median_3fac_t_log2FC <- log2_fold_change(values_norm_median_3fac_rev_t)
+dim(values_norm_median_3fac_t_log2FC)
+range(values_norm_median_3fac_t_log2FC, na.rm=TRUE)
+
+# change colnames ("trial", "genotype_name", "sample_time")
+colnames(values_norm_median_3fac_t_log2FC) <- gsub(".control", "", colnames(values_norm_median_3fac_t_log2FC))
+head(values_norm_median_3fac_t_log2FC)
+
+# export matrix for heatmap
+write.table(values_norm_median_3fac_t_log2FC, 
+            "output/merge_mpi_test_rewatering/log2FC_treatment_per_sampletime_cultivar.txt", 
             sep = "\t", quote = F, row.names = T)
 ```
 
@@ -744,25 +922,58 @@ log2FC_sample_time_sig [union_sample_time,]
 # write.table(log2FC_cultivars_sig[union_cultivar,], 
 #             "../heatmaps/merge_mpi_test_rewatering/log2FC_cultivars_sig_for_heatmap.txt", 
 #             sep = "\t", quote = F, col.names = NA, row.names = T)
+
+###############
+
+# log2FC per sample time and cultivar
+log2FC_sample_time_cultivar_sig <- values_norm_median_3fac_t_log2FC
+
+for (i in 1:164){
+  for (j in 1:16){
+    if(is.na(res_ttest[i,j])){
+      log2FC_sample_time_cultivar_sig[i,j] <- NA
+    }
+    else if (res_ttest[i,j] > 0.01){
+      log2FC_sample_time_cultivar_sig[i,j] <- NA
+    }
+  }
+}
 ```
 
 
 # Significant changes for heatmap
+- p < 0.05 *
+- p < 0.01 **
+- p < 0.001 ***
 ```{r significant changes for heatmap}
 res_ttest_p_m <- melt(res_ttest_p[union_sample_time,])
-
-# p < 0.01 **
-# p < 0.001 ***
 res_ttest_p_m$value3 <- cut(res_ttest_p_m$value,
                             breaks=c(-Inf, 0.001, 0.01),
                             label=c("***", "**")) 
 
 signif2 <- matrix(res_ttest_p_m$value3, ncol=4)
+
+##############
+
+# for t-test of stress effect for sample time and cultivar
+res_ttest_melt <- melt(res_ttest)
+
+res_ttest_melt$value3 <- cut(res_ttest_melt$value,
+                            breaks = c(-Inf, 0.001, 0.01, 0.05),
+                            label = c("***", "**", "*")) 
+
+signif_sample_time_cultivar <- matrix(res_ttest_melt$value3, ncol = 16)
+
+res_ttest_melt_ <- res_ttest_melt[,-3]
+colnames(res_ttest_melt_)[1:2] <- c("id","variable")
+res_ttest_melt_cast <- cast(res_ttest_melt_, id ~ variable)
+res_ttest_melt_cast <- res_ttest_melt_cast[analytes_sel_exp_sort$Name,]
 ```
 
 
 # Heatmap
-```{r heatmap}
+## heatmap of log2FC per sample time
+```{r heatmap of log2FC per sample time}
 mat_data <- as.matrix(values_norm_median_rev_t_log2FC[union_sample_time,])
 
 distance = dist(mat_data, method = "euclidian")
@@ -782,7 +993,10 @@ col_breaks = c(seq(-3,-0.81,length=100), # for blue
                seq(0.81,3,length=100)) # for red
 
 #pdf("../../Doktorarbeit/figures/heatmap_log2FC_signif_cultivars_field_new.pdf", width=6.5, height=10)
-pdf("figures/merge_mpi_test_rewatering/heatmap_log2FC_signif.pdf", width=6, height=12)
+#pdf("figures/merge_mpi_test_rewatering/heatmap_log2FC_signif.pdf", width=6, height=12)
+dpi <- 300
+png("figures/merge_mpi_test_rewatering/heatmap_log2FC_signif_note.png", 
+    width=9*dpi, height=18*dpi, res = dpi)
 
 lmat=rbind(4:3, 2:1)
 lhei=c(0.8, 4)
@@ -801,10 +1015,10 @@ heatmap.2(mat_data,
   notecol="black",      # change font color of cell labels to black
   density.info="none",  # turns off density plot inside color legend
   trace="none",         # turns off trace lines inside the heat map
-  margins =c(6,20),     # widens margins around plot
+  margins =c(6,15),     # widens margins around plot
   keysize=1.5,
-  cexRow=0.8,
-  cexCol=1.3,
+  cexRow=1.2,
+  cexCol=1.5,
   labCol = c("early/\n before", "early/\n after", "late/\n before", "late/\n after"),
   lhei=c(0.6, 4),
   col=my_palette,       # use on color palette defined earlier 
@@ -818,7 +1032,7 @@ heatmap.2(mat_data,
 dev.off()
 ```
 
-
+### heatmap reordered
 ```{r heatmap REORDERED}
 mat_data <- as.matrix(values_norm_median_rev_t_log2FC[union_sample_time,])
 
@@ -847,6 +1061,8 @@ col_breaks = c(seq(-3,-0.81,length=100), # for blue
 # for Phd-thesis: cultivar effect, with treatment as symbol
 #pdf("../../TROST/Manuskripte/tba/heatmap_log2FC_signif_cultivars_field_reordered_average_new_scale2.pdf", width=6, height=10)
 pdf("figures/merge_mpi_test_rewatering/heatmap_log2FC_signif_reordered.pdf", width=6, height=12)
+# dpi <- 300
+# png("figures/merge_mpi_test_rewatering/heatmap_log2FC_signif_reordered.png", width=3*dpi, height=6*dpi, res = dpi)
 
 lmat=rbind(4:3, 2:1)
 lhei=c(0.8, 4)
@@ -883,7 +1099,72 @@ dev.off()
 ```
 
 
-### export tables that contain only sig changed analytes (treatment effect)
+## heatmap of log2FC per sample time and cultivar
+```{r heatmap of log2FC per sample time and cultivar}
+mat_data <- as.matrix(values_norm_median_3fac_t_log2FC)
+# change order of columns
+mat_data <- mat_data[,c(1,5,9,13, 2,6,10,14, 3,7,11,15, 4,8,12,16)]
+signif_sample_time_cultivar <- res_ttest_melt_cast[,c(8,6,7,9, 4,2,3,5, 16,14,15,17, 12,10,11,13)]
+
+distance = dist(mat_data, method = "euclidian")
+cluster = hclust(distance, method = "average")
+
+#mycluster <- cutree(cluster, h=max(cluster$height)/1.5)
+mycluster <- cutree(cluster, k=6)
+#mycluster[cluster$order]
+
+mycolor <- brewer.pal(8, "Set2")
+mycolor <- mycolor[as.vector(mycluster)]
+
+my_palette <- colorRampPalette(c("blue", "white", "red"))(n = 299)
+
+col_breaks = c(seq(-5,-0.81,length=100), # for blue
+               seq(-0.8,0.8,length=100), # for white
+               seq(0.81,5,length=100)) # for red
+
+#pdf("figures/merge_mpi_test_rewatering/heatmap_log2FC_signif_sample_time_cultivar_note.pdf", width = 12, height = 14)
+dpi <- 300
+png("figures/merge_mpi_test_rewatering/heatmap_log2FC_signif_sample_time_cultivar_note.png", 
+    width=12*dpi, height=20*dpi, res = dpi)
+
+lmat=rbind(4:3, 2:1)
+lhei=c(0.8, 4)
+lwid=c(1, 4)
+
+layout(mat = lmat, widths = lwid, heights = lhei)
+
+heatmap.2(mat_data,
+  cellnote = signif_sample_time_cultivar,  # same data set for cell labels
+  notecex=0.8, # numeric scaling factor for cellnote items
+  colsep=0:ncol(mat_data), 
+  rowsep=0:nrow(mat_data),
+  sepwidth=c(0.01,0.05),
+  sepcolor="black",
+  main = "", # heat map title
+  notecol="black",      # change font color of cell labels to black
+  density.info="none",  # turns off density plot inside color legend
+  trace="none",         # turns off trace lines inside the heat map
+  margins =c(7,25),     # widens margins around plot
+  keysize=1.5,
+  cexRow=1,
+  cexCol=1.3,
+  labCol = names_sample_time_cultivar,
+  lhei=c(0.6, 4),
+  col=my_palette,       # use on color palette defined earlier 
+  breaks=col_breaks,    # enable color transition at specified limits
+  RowSideColors=mycolor,
+  Rowv=as.dendrogram(cluster),
+  dendrogram="row",     # only draw a row dendrogram
+  Colv="NA",
+  adjCol = c(1,0.5))            # turn off column clustering```
+
+dev.off()
+```
+
+
+
+
+## export tables that contain only sig changed analytes (treatment effect)
 ```{r export tables that contain only sig changed analytes}
 # only significantly changed analytes
 
